@@ -1,0 +1,18 @@
+.{
+    .name = .wm,
+    .version = "0.1.0",
+    .fingerprint = 0x12a4e02b0e3a9a16,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .wayland = .{
+            .url = "https://codeberg.org/ifreund/zig-wayland/archive/main.tar.gz",
+            .hash = "1220997e7559328728919efc4096c7e8d68ce51502f4e0d03e1c79a313992e22532a",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "protocol",
+    },
+}
