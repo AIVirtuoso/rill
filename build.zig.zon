@@ -1,7 +1,7 @@
 .{
-    .name = .wm,
+    .name = .rill,
     .version = "0.1.0",
-    .fingerprint = 0x12a4e02b0e3a9a16,
+    .fingerprint = 0x2a384e7c4d9543f2,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .wayland = .{
