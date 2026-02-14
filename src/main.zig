@@ -14,12 +14,15 @@ pub var river_window_manager: ?*river.WindowManagerV1 = null;
 pub var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
 var river_seat: ?*river.SeatV1 = null;
 
-pub var window_list = std.ArrayList(window.Window){};
-pub var focused_window_index: ?usize = null;
+pub const Workspace = struct {
+    window_list: std.ArrayList(window.Window),
+    focused_window_index: ?usize,
+};
+
+pub var workspace_list: [10]Workspace = undefined;
+pub var focused_workspace_index: usize = 0;
 
 pub fn main() !void {
-    defer window_list.deinit(allocator);
-
     const display = try wl.Display.connect(null);
     defer display.disconnect();
 
@@ -30,8 +33,15 @@ pub fn main() !void {
     _ = display.roundtrip();
 
     if (river_window_manager) |window_manager| {
-        std.debug.print("Successfully bound to River window manager!\n", .{});
+        std.debug.print("Successfully bound to River window manager\n", .{});
         window_manager.setListener(?*anyopaque, windowManagerListener, null);
+
+        for (&workspace_list) |*workspace| {
+            workspace.* = Workspace{
+                .window_list = std.ArrayList(window.Window){},
+                .focused_window_index = null,
+            };
+        }
 
         config.loadConfig(allocator);
 
@@ -43,7 +53,7 @@ pub fn main() !void {
             }
         }
     } else {
-        std.debug.print("Failed to find River window manager!\n", .{});
+        std.debug.print("Failed to find River window manager\n", .{});
         return;
     }
 }
@@ -67,9 +77,6 @@ fn registryListener(
     }
 }
 
-pub const screen_width: i32 = 2560;
-pub const screen_height: i32 = 1440;
-
 fn windowManagerListener(
     window_manager: *river.WindowManagerV1,
     event: river.WindowManagerV1.Event,
@@ -79,11 +86,11 @@ fn windowManagerListener(
 
     switch (event) {
         .output => |_| {
-            std.debug.print("Found an output!\n", .{});
+            std.debug.print("Found an output\n", .{});
         },
         .seat => |seat_event| {
             river_seat = seat_event.id;
-            std.debug.print("Found a seat!\n", .{});
+            std.debug.print("Found a seat\n", .{});
 
             keybind.setupKeybinds(seat_event.id);
         },
@@ -91,41 +98,40 @@ fn windowManagerListener(
             window.addWindow(window_event.id);
         },
         .manage_start => {
-            const focused_index = focused_window_index orelse {
+            const focused_window_index = workspace_list[focused_workspace_index].focused_window_index orelse {
+                window_manager.manageFinish();
+                return;
+            };
+            const seat = river_seat orelse {
+                std.debug.print("Failed to find a seat\n", .{});
                 window_manager.manageFinish();
                 return;
             };
 
-            const seat = river_seat orelse {
-                std.debug.print("Failed to find a seat!\n", .{});
-                return;
-            };
-            seat.focusWindow(window_list.items[focused_index].river_window);
-
+            seat.focusWindow(workspace_list[focused_workspace_index].window_list.items[focused_window_index].river_window);
             window_manager.manageFinish();
         },
         .render_start => {
-            const focused_index = focused_window_index orelse {
-                window_manager.renderFinish();
-                return;
-            };
+            for (workspace_list, 0..) |workspace, i| {
+                const focused_window_index = workspace.focused_window_index orelse continue;
 
-            const focused_window = window_list.items[focused_index];
-            var x_position = @divTrunc(screen_width, 2) - @divTrunc(focused_window.width, 2);
-            focused_window.river_node.setPosition(x_position, 0);
+                const focused_window = workspace.window_list.items[focused_window_index];
+                var x_position = @divTrunc(config.config.screen_width, 2) - @divTrunc(focused_window.width, 2);
+                const y_position = (@as(i32, @intCast(i)) - @as(i32, @intCast(focused_workspace_index))) * config.config.screen_height;
+                focused_window.river_node.setPosition(x_position, y_position);
 
-            var iter = std.mem.reverseIterator(window_list.items[0..focused_index]);
-            while (iter.next()) |item| {
-                x_position -= item.width;
-                item.river_node.setPosition(x_position, 0);
+                var iter = std.mem.reverseIterator(workspace.window_list.items[0..focused_window_index]);
+                while (iter.next()) |item| {
+                    x_position -= item.width;
+                    item.river_node.setPosition(x_position, y_position);
+                }
+
+                x_position = @divTrunc(config.config.screen_width, 2) + @divTrunc(focused_window.width, 2);
+                for (workspace.window_list.items[focused_window_index + 1 ..]) |item| {
+                    item.river_node.setPosition(x_position, y_position);
+                    x_position += item.width;
+                }
             }
-
-            x_position = @divTrunc(screen_width, 2) + @divTrunc(focused_window.width, 2);
-            for (window_list.items[focused_index + 1 ..]) |item| {
-                item.river_node.setPosition(x_position, 0);
-                x_position += item.width;
-            }
-
             window_manager.renderFinish();
         },
         else => {},

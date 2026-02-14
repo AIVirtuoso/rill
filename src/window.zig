@@ -12,10 +12,10 @@ pub const Window = struct {
 };
 
 pub fn addWindow(window: *river.WindowV1) void {
-    const width: i32 = @intFromFloat(main.screen_width * config.config.window_width_proportion);
-    const height = main.screen_height;
+    const width = @as(f32, @floatFromInt(config.config.screen_width)) * config.config.window_width_proportion;
+    const height = config.config.screen_height;
 
-    window.proposeDimensions(width, height);
+    window.proposeDimensions(@intFromFloat(width), height);
     window.setListener(?*anyopaque, windowListener, null);
 
     const node = window.getNode() catch |err| {
@@ -23,22 +23,24 @@ pub fn addWindow(window: *river.WindowV1) void {
         return;
     };
 
+    const focused_workspace = &main.workspace_list[main.focused_workspace_index];
     var window_index: usize = 0;
-    if (main.focused_window_index) |focused_index| {
-        window_index = focused_index + 1;
+    if (focused_workspace.focused_window_index) |focused_window_index| {
+        window_index = focused_window_index + 1;
     }
-    main.window_list.insert(main.allocator, window_index, .{
+
+    focused_workspace.window_list.insert(main.allocator, window_index, .{
         .river_window = window,
         .river_node = node,
-        .width = width,
+        .width = @intFromFloat(width),
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
-    std.debug.print("Added a window! Total windows: {d}\n", .{main.window_list.items.len});
+    std.debug.print("Added a window at workspace {}, window {}\n", .{ main.focused_workspace_index + 1, window_index });
 
-    main.focused_window_index = window_index;
-    std.debug.print("Focused on window with index {d}!\n", .{window_index});
+    focused_workspace.focused_window_index = window_index;
+    std.debug.print("Set focus in workspace {} on window {}\n", .{ main.focused_workspace_index + 1, window_index });
 }
 
 fn windowListener(
@@ -49,23 +51,26 @@ fn windowListener(
     _ = data;
     switch (event) {
         .closed => {
-            const focused_index = main.focused_window_index orelse return;
+            for (&main.workspace_list, 0..) |*workspace, i_workspace| {
+                const focused_window_index = workspace.focused_window_index orelse continue;
+                for (workspace.window_list.items, 0..) |item, i_window| {
+                    if (item.river_window == window) {
+                        std.debug.print("Window at workspace {}, window {} is closed\n", .{ i_workspace + 1, i_window });
 
-            for (main.window_list.items, 0..) |item, i| {
-                if (item.river_window == window) {
-                    if (i == focused_index) {
-                        if (main.window_list.items.len == 1) {
-                            main.focused_window_index = null;
-                        } else if (i == main.window_list.items.len - 1) {
-                            main.focused_window_index = focused_index - 1;
-                            std.debug.print("Focused on window with index {d}!\n", .{focused_index - 1});
+                        if (i_window == workspace.focused_window_index) {
+                            if (workspace.window_list.items.len == 1) {
+                                workspace.focused_window_index = null;
+                                std.debug.print("Workspace {} becomes empty\n", .{i_workspace + 1});
+                            } else if (i_window == workspace.window_list.items.len - 1) {
+                                workspace.focused_window_index = focused_window_index - 1;
+                                std.debug.print("Set focus in workspace {} on window {}\n", .{ i_workspace + 1, focused_window_index - 1 });
+                            }
                         }
-                    }
 
-                    _ = main.window_list.orderedRemove(i);
-                    window.destroy();
-                    std.debug.print("Destroyed a window! Remaining: {d}\n", .{main.window_list.items.len});
-                    break;
+                        _ = workspace.window_list.orderedRemove(i_window);
+                        window.destroy();
+                        return;
+                    }
                 }
             }
         },
