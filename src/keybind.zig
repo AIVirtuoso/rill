@@ -27,7 +27,7 @@ pub fn setupKeybinds(seat: *river.SeatV1) void {
         std.debug.print("Failed to find River xkb bindings\n", .{});
         return;
     };
-    std.debug.print("Successfully bound to River xkb bindings\n", .{});
+    std.debug.print("Successfully found River xkb bindings\n", .{});
 
     for (config.config.keybinds) |*keybind| {
         const river_xkb_binding: ?*river.XkbBindingV1 = xkb_bindings.getXkbBinding(seat, keybind.keysym, keybind.modifier) catch null;
@@ -37,12 +37,12 @@ pub fn setupKeybinds(seat: *river.SeatV1) void {
         };
         std.debug.print("Successfully got xkb binding\n", .{});
 
-        xkb_binding.setListener(?*anyopaque, keyboardBindingListener, @ptrCast(@constCast(&keybind.action)));
+        xkb_binding.setListener(?*anyopaque, xkbBindingListener, @ptrCast(@constCast(&keybind.action)));
         xkb_binding.enable();
     }
 }
 
-fn keyboardBindingListener(
+fn xkbBindingListener(
     binding: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
     data: ?*anyopaque,
