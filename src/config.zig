@@ -8,6 +8,7 @@ const Config = struct {
     screen_width: i32,
     screen_height: i32,
     window_width_proportion: f32,
+    spawn_at_startup: []const []const []const u8,
     keybinds: []keybind.Keybind,
 };
 
@@ -75,7 +76,17 @@ fn readConfig(allocator: std.mem.Allocator) ?[:0]u8 {
     return null;
 }
 
-pub var config: Config = .{ .screen_width = 2560, .screen_height = 1440, .window_width_proportion = 0.5, .keybinds = &default_keybinds };
+pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
+    for (config.spawn_at_startup) |command| {
+        var child = std.process.Child.init(command, allocator);
+        child.spawn() catch |err| {
+            std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+        };
+        std.debug.print("Spawned {s}\n", .{command[0]});
+    }
+}
+
+pub var config: Config = .{ .screen_width = 2560, .screen_height = 1440, .window_width_proportion = 0.5, .spawn_at_startup = &.{}, .keybinds = &default_keybinds };
 
 var default_keybinds = [_]keybind.Keybind{
     .{

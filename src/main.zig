@@ -49,6 +49,7 @@ pub fn main() !void {
         }
 
         config.loadConfig(allocator);
+        config.spawnAtStartup(allocator);
 
         while (true) {
             const status = display.dispatch();
