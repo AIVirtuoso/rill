@@ -5,6 +5,7 @@ const river = wayland.client.river;
 const main = @import("main.zig");
 const config = @import("config.zig");
 const window = @import("window.zig");
+const layout = @import("layout.zig");
 
 pub const Keybind = struct {
     keysym: u32,
@@ -43,15 +44,15 @@ pub fn setupKeybinds(seat: *river.SeatV1) void {
 }
 
 fn xkbBindingListener(
-    binding: *river.XkbBindingV1,
+    xkb_binding: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
     data: ?*anyopaque,
 ) void {
-    _ = binding;
+    _ = xkb_binding;
     const action: *Action = @ptrCast(@alignCast(data.?));
     switch (event) {
         .pressed => {
-            const focused_workspace = &main.workspace_list[main.focused_workspace_index];
+            const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
 
             switch (action.*) {
                 .spawn => |command| {
@@ -68,10 +69,10 @@ fn xkbBindingListener(
                     focused_workspace.focused_window_index = focused_window_index - 1;
                     std.debug.print(
                         "Set focus in workspace {} on window {}\n",
-                        .{ main.focused_workspace_index + 1, focused_window_index - 1 },
+                        .{ layout.focused_workspace_index + 1, focused_window_index - 1 },
                     );
 
-                    main.applyLayout();
+                    layout.applyLayout();
                 },
                 .focus_window_right => {
                     const focused_window_index = focused_workspace.focused_window_index orelse return;
@@ -80,10 +81,10 @@ fn xkbBindingListener(
                     focused_workspace.focused_window_index = focused_window_index + 1;
                     std.debug.print(
                         "Set focus in workspace {} on window {}\n",
-                        .{ main.focused_workspace_index + 1, focused_window_index + 1 },
+                        .{ layout.focused_workspace_index + 1, focused_window_index + 1 },
                     );
 
-                    main.applyLayout();
+                    layout.applyLayout();
                 },
                 .move_window_left => {
                     const focused_window_index = focused_workspace.focused_window_index orelse return;
@@ -96,16 +97,16 @@ fn xkbBindingListener(
                     );
                     std.debug.print(
                         "Moved window at workspace {}, window {} to the left\n",
-                        .{ main.focused_workspace_index + 1, focused_window_index },
+                        .{ layout.focused_workspace_index + 1, focused_window_index },
                     );
 
                     focused_workspace.focused_window_index = focused_window_index - 1;
                     std.debug.print(
                         "Set focus in workspace {} on window {}\n",
-                        .{ main.focused_workspace_index + 1, focused_window_index - 1 },
+                        .{ layout.focused_workspace_index + 1, focused_window_index - 1 },
                     );
 
-                    main.applyLayout();
+                    layout.applyLayout();
                 },
                 .move_window_right => {
                     const focused_window_index = focused_workspace.focused_window_index orelse return;
@@ -118,22 +119,22 @@ fn xkbBindingListener(
                     );
                     std.debug.print(
                         "Moved window at workspace {}, window {} to the right\n",
-                        .{ main.focused_workspace_index + 1, focused_window_index },
+                        .{ layout.focused_workspace_index + 1, focused_window_index },
                     );
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
                     std.debug.print(
                         "Set focus in workspace {} on window {}\n",
-                        .{ main.focused_workspace_index + 1, focused_window_index + 1 },
+                        .{ layout.focused_workspace_index + 1, focused_window_index + 1 },
                     );
 
-                    main.applyLayout();
+                    layout.applyLayout();
                 },
                 .focus_workspace => |number| {
-                    main.focused_workspace_index = number - 1;
-                    std.debug.print("Set focus on workspace {}\n", .{main.focused_workspace_index + 1});
+                    layout.focused_workspace_index = number - 1;
+                    std.debug.print("Set focus on workspace {}\n", .{layout.focused_workspace_index + 1});
 
-                    main.applyLayout();
+                    layout.applyLayout();
                 },
                 .reload_config => {
                     config.loadConfig(main.allocator);
