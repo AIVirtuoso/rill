@@ -29,7 +29,7 @@ pub var animation_progress: ?usize = null;
 pub fn applyLayout() void {
     for (workspace_list) |workspace| {
         for (workspace.window_list.items) |item| {
-            item.river_window.proposeDimensions(item.width, item.height);
+            item.river_window.proposeDimensions(item.width, output.non_exclusive_height);
         }
     }
 
@@ -55,8 +55,8 @@ pub fn applyLayout() void {
         const focused_window_index = workspace.focused_window_index orelse continue;
         const focused_window = &workspace.window_list.items[focused_window_index];
 
-        var x_coordinate = non_exclusive_area.x + @divTrunc(non_exclusive_area.width, 2) - @divTrunc(focused_window.width, 2);
-        const y_coordinate = (@as(i32, @intCast(i_workspace)) - @as(i32, @intCast(focused_workspace_index))) * config.config.screen_height + non_exclusive_area.y;
+        var x_coordinate = output.non_exclusive_x + @divTrunc(output.non_exclusive_width, 2) - @divTrunc(focused_window.width, 2);
+        const y_coordinate = (@as(i32, @intCast(i_workspace)) - @as(i32, @intCast(focused_workspace_index))) * output.height + output.non_exclusive_y;
 
         animation_node_list.append(main.allocator, .{
             .river_node = focused_window.river_node,
@@ -92,7 +92,7 @@ pub fn applyLayout() void {
             };
         }
 
-        x_coordinate = @divTrunc(config.config.screen_width, 2) + @divTrunc(focused_window.width, 2);
+        x_coordinate = output.non_exclusive_x + @divTrunc(output.non_exclusive_width, 2) + @divTrunc(focused_window.width, 2);
         for (workspace.window_list.items[focused_window_index + 1 ..]) |*item| {
             animation_node_list.append(main.allocator, .{
                 .river_node = item.river_node,
@@ -136,24 +136,54 @@ pub fn animate() void {
     }
 }
 
-var non_exclusive_area: std.meta.TagPayload(river.LayerShellOutputV1.Event, .non_exclusive_area) = undefined;
+const Output = struct {
+    width: i32,
+    height: i32,
+    non_exclusive_width: i32,
+    non_exclusive_height: i32,
+    non_exclusive_x: i32,
+    non_exclusive_y: i32,
+};
+pub var output: Output = undefined;
+
+pub fn outputListener(
+    river_output: *river.OutputV1,
+    event: river.OutputV1.Event,
+    data: ?*anyopaque,
+) void {
+    _ = river_output;
+    _ = data;
+
+    switch (event) {
+        .dimensions => |dimensions| {
+            output = .{
+                .width = dimensions.width,
+                .height = dimensions.height,
+                .non_exclusive_width = dimensions.width,
+                .non_exclusive_height = dimensions.height,
+                .non_exclusive_x = 0,
+                .non_exclusive_y = 0,
+            };
+            std.debug.print("Output dimension: {}x{}\n", .{ output.width, output.height });
+        },
+        else => {},
+    }
+}
 
 pub fn layerShellOutputListener(
     layer_shell_output: *river.LayerShellOutputV1,
     event: river.LayerShellOutputV1.Event,
     data: ?*anyopaque,
 ) void {
-    _ = data;
     _ = layer_shell_output;
+    _ = data;
 
     switch (event) {
-        .non_exclusive_area => |area| {
-            for (&workspace_list) |*workspace| {
-                for (workspace.window_list.items) |*item| {
-                    item.height = area.height;
-                }
-            }
-            non_exclusive_area = area;
+        .non_exclusive_area => |non_exclusive_area| {
+            output.non_exclusive_width = non_exclusive_area.width;
+            output.non_exclusive_height = non_exclusive_area.height;
+            output.non_exclusive_x = non_exclusive_area.x;
+            output.non_exclusive_y = non_exclusive_area.y;
 
             applyLayout();
         },

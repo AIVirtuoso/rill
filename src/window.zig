@@ -2,6 +2,7 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
+const main = @import("main.zig");
 const config = @import("config.zig");
 const layout = @import("layout.zig");
 
@@ -9,7 +10,6 @@ pub const Window = struct {
     river_window: *river.WindowV1,
     river_node: *river.NodeV1,
     width: i32,
-    height: i32,
     x: i32,
     y: i32,
 };
@@ -20,8 +20,7 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         return;
     };
 
-    const width = @as(f32, @floatFromInt(config.config.screen_width)) * config.config.window_width_proportion;
-    const height = config.config.screen_height;
+    const width = @as(f32, @floatFromInt(layout.output.non_exclusive_width)) * config.config.window_width_proportion;
 
     const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
     var window_index: usize = 0;
@@ -33,8 +32,7 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         .river_window = window,
         .river_node = node,
         .width = @intFromFloat(width),
-        .height = height,
-        .x = config.config.screen_width,
+        .x = layout.output.width,
         .y = 0,
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
@@ -51,7 +49,7 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
 }
 
 fn windowListener(
-    window: *river.WindowV1,
+    river_window: *river.WindowV1,
     event: river.WindowV1.Event,
     data: ?*anyopaque,
 ) void {
@@ -61,7 +59,7 @@ fn windowListener(
             for (&layout.workspace_list, 0..) |*workspace, i_workspace| {
                 const focused_window_index = workspace.focused_window_index orelse continue;
                 for (workspace.window_list.items, 0..) |item, i_window| {
-                    if (item.river_window == window) {
+                    if (item.river_window == river_window) {
                         std.debug.print("Window at workspace {}, window {} is closed\n", .{ i_workspace + 1, i_window });
 
                         if (i_window == workspace.focused_window_index) {
@@ -75,7 +73,7 @@ fn windowListener(
                         }
 
                         _ = workspace.window_list.orderedRemove(i_window);
-                        window.destroy();
+                        river_window.destroy();
 
                         layout.applyLayout();
                         return;

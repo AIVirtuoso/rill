@@ -33,10 +33,30 @@ pub fn setupKeybinds(seat: *river.SeatV1) void {
     for (config.config.keybinds) |*keybind| {
         const river_xkb_binding: ?*river.XkbBindingV1 = xkb_bindings.getXkbBinding(seat, keybind.keysym, keybind.modifier) catch null;
         const xkb_binding = river_xkb_binding orelse {
-            std.debug.print("Failed to get xkb binding\n", .{});
+            switch (keybind.action) {
+                .spawn => |command| {
+                    std.debug.print("Failed to get xkb binding for {s}\n", .{command[0]});
+                },
+                .focus_workspace => |number| {
+                    std.debug.print("Failed to get xkb binding for focus_workspace {}\n", .{number});
+                },
+                else => |tag| {
+                    std.debug.print("Failed to get xkb binding for {s}\n", .{@tagName(tag)});
+                },
+            }
             continue;
         };
-        std.debug.print("Successfully got xkb binding\n", .{});
+        switch (keybind.action) {
+            .spawn => |command| {
+                std.debug.print("Successfully got xkb binding for {s}\n", .{command[0]});
+            },
+            .focus_workspace => |number| {
+                std.debug.print("Successfully got xkb binding for focus_workspace {}\n", .{number});
+            },
+            else => |tag| {
+                std.debug.print("Successfully got xkb binding for {s}\n", .{@tagName(tag)});
+            },
+        }
 
         xkb_binding.setListener(?*anyopaque, xkbBindingListener, @ptrCast(@constCast(&keybind.action)));
         xkb_binding.enable();

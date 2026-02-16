@@ -26,34 +26,33 @@ pub fn main() !void {
 
     _ = display.roundtrip();
 
-    if (river_window_manager) |window_manager| {
-        std.debug.print("Successfully found River window manager\n", .{});
-        window_manager.setListener(?*anyopaque, windowManagerListener, null);
-
-        for (&layout.workspace_list) |*workspace| {
-            workspace.* = layout.Workspace{
-                .window_list = std.ArrayList(window.Window){},
-                .focused_window_index = null,
-            };
-        }
-
-        config.loadConfig(allocator);
-        config.spawnAtStartup(allocator);
-
-        while (true) {
-            const status = display.dispatch();
-            if (@intFromEnum(status) != 0) {
-                std.debug.print("Wayland loop stopped with status: {}\n", .{status});
-                break;
-            }
-
-            if (layout.animation_progress) |_| {
-                window_manager.manageDirty();
-            }
-        }
-    } else {
+    const window_manager = river_window_manager orelse {
         std.debug.print("Failed to find River window manager\n", .{});
         return;
+    };
+    std.debug.print("Successfully found River window manager\n", .{});
+    window_manager.setListener(?*anyopaque, windowManagerListener, null);
+
+    for (&layout.workspace_list) |*workspace| {
+        workspace.* = layout.Workspace{
+            .window_list = std.ArrayList(window.Window){},
+            .focused_window_index = null,
+        };
+    }
+
+    config.loadConfig(allocator);
+    config.spawnAtStartup(allocator);
+
+    while (true) {
+        const status = display.dispatch();
+        if (@intFromEnum(status) != 0) {
+            std.debug.print("Wayland loop stopped with status: {}\n", .{status});
+            break;
+        }
+
+        if (layout.animation_progress) |_| {
+            window_manager.manageDirty();
+        }
     }
 }
 
@@ -89,7 +88,7 @@ fn windowManagerListener(
         .output => |output_event| {
             std.debug.print("Found an output\n", .{});
 
-            // output_event.id.setListener(?*anyopaque, outputListener, null);
+            output_event.id.setListener(?*anyopaque, layout.outputListener, null);
 
             const layer_shell = river_layer_shell orelse {
                 std.debug.print("Failed to find a layer shell\n", .{});
@@ -131,17 +130,3 @@ fn windowManagerListener(
         else => {},
     }
 }
-
-// fn outputListener(
-//     output: *river.OutputV1,
-//     event: river.OutputV1.Event,
-//     data: ?*anyopaque,
-// ) void {
-//     _ = output;
-//     _ = data;
-
-//     switch (event) {
-//         .dimensions => |dimensions| {},
-//         else => {},
-//     }
-// }

@@ -5,8 +5,6 @@ const river = wayland.client.river;
 const keybind = @import("keybind.zig");
 
 const Config = struct {
-    screen_width: i32,
-    screen_height: i32,
     window_width_proportion: f32,
     spawn_at_startup: []const []const []const u8,
     keybinds: []keybind.Keybind,
@@ -20,6 +18,7 @@ pub fn loadConfig(allocator: std.mem.Allocator) void {
 
     config = std.zon.parse.fromSlice(Config, allocator, file_content, null, .{}) catch |err| {
         std.debug.print("Failed to parse config file: {}\n", .{err});
+        std.debug.print("No config file loaded\n", .{});
         return;
     };
 }
@@ -87,8 +86,6 @@ pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
 }
 
 pub var config: Config = .{
-    .screen_width = 2560,
-    .screen_height = 1440,
     .window_width_proportion = 0.5,
     .spawn_at_startup = &.{},
     .keybinds = &default_keybinds,
@@ -102,22 +99,22 @@ var default_keybinds = [_]keybind.Keybind{
     },
 
     .{
-        .keysym = 0xFF51,
+        .keysym = 0xff51,
         .modifier = .{ .mod4 = true },
         .action = .focus_window_left,
     },
     .{
-        .keysym = 0xFF53,
+        .keysym = 0xff53,
         .modifier = .{ .mod4 = true },
         .action = .focus_window_right,
     },
     .{
-        .keysym = 0xFF51,
+        .keysym = 0xff51,
         .modifier = .{ .mod4 = true, .shift = true },
         .action = .move_window_left,
     },
     .{
-        .keysym = 0xFF53,
+        .keysym = 0xff53,
         .modifier = .{ .mod4 = true, .shift = true },
         .action = .move_window_right,
     },
