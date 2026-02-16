@@ -10,8 +10,8 @@ pub const Window = struct {
     river_node: *river.NodeV1,
     width: i32,
     height: i32,
-    x_coordinate: i32,
-    y_coordinate: i32,
+    x: i32,
+    y: i32,
 };
 
 pub fn addWindow(window: *river.WindowV1) void {
@@ -34,8 +34,8 @@ pub fn addWindow(window: *river.WindowV1) void {
         .river_node = node,
         .width = @intFromFloat(width),
         .height = height,
-        .x_coordinate = 0,
-        .y_coordinate = 0,
+        .x = 0,
+        .y = 0,
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
@@ -46,6 +46,8 @@ pub fn addWindow(window: *river.WindowV1) void {
     std.debug.print("Set focus in workspace {} on window {}\n", .{ main.focused_workspace_index + 1, window_index });
 
     window.setListener(?*anyopaque, windowListener, null);
+
+    main.applyLayout();
 }
 
 fn windowListener(
@@ -74,6 +76,8 @@ fn windowListener(
 
                         _ = workspace.window_list.orderedRemove(i_window);
                         window.destroy();
+
+                        main.applyLayout();
                         return;
                     }
                 }

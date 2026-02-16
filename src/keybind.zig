@@ -51,7 +51,6 @@ fn xkbBindingListener(
     const action: *Action = @ptrCast(@alignCast(data.?));
     switch (event) {
         .pressed => {
-            const window_manager = main.river_window_manager orelse return;
             const focused_workspace = &main.workspace_list[main.focused_workspace_index];
 
             switch (action.*) {
@@ -67,47 +66,74 @@ fn xkbBindingListener(
                     if (focused_window_index == 0) return;
 
                     focused_workspace.focused_window_index = focused_window_index - 1;
-                    std.debug.print("Set focus in workspace {} on window {}\n", .{ main.focused_workspace_index + 1, focused_window_index - 1 });
+                    std.debug.print(
+                        "Set focus in workspace {} on window {}\n",
+                        .{ main.focused_workspace_index + 1, focused_window_index - 1 },
+                    );
 
-                    window_manager.manageDirty();
+                    main.applyLayout();
                 },
                 .focus_window_right => {
                     const focused_window_index = focused_workspace.focused_window_index orelse return;
                     if (focused_window_index == focused_workspace.window_list.items.len - 1) return;
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
-                    std.debug.print("Set focus in workspace {} on window {}\n", .{ main.focused_workspace_index + 1, focused_window_index + 1 });
+                    std.debug.print(
+                        "Set focus in workspace {} on window {}\n",
+                        .{ main.focused_workspace_index + 1, focused_window_index + 1 },
+                    );
 
-                    window_manager.manageDirty();
+                    main.applyLayout();
                 },
                 .move_window_left => {
                     const focused_window_index = focused_workspace.focused_window_index orelse return;
                     if (focused_window_index == 0) return;
 
-                    std.mem.swap(window.Window, &focused_workspace.window_list.items[focused_window_index], &focused_workspace.window_list.items[focused_window_index - 1]);
-                    std.debug.print("Moved window at workspace {}, window {} to the left\n", .{ main.focused_workspace_index + 1, focused_window_index });
+                    std.mem.swap(
+                        window.Window,
+                        &focused_workspace.window_list.items[focused_window_index],
+                        &focused_workspace.window_list.items[focused_window_index - 1],
+                    );
+                    std.debug.print(
+                        "Moved window at workspace {}, window {} to the left\n",
+                        .{ main.focused_workspace_index + 1, focused_window_index },
+                    );
 
                     focused_workspace.focused_window_index = focused_window_index - 1;
-                    std.debug.print("Set focus in workspace {} on window {}\n", .{ main.focused_workspace_index + 1, focused_window_index - 1 });
+                    std.debug.print(
+                        "Set focus in workspace {} on window {}\n",
+                        .{ main.focused_workspace_index + 1, focused_window_index - 1 },
+                    );
 
-                    window_manager.manageDirty();
+                    main.applyLayout();
                 },
                 .move_window_right => {
                     const focused_window_index = focused_workspace.focused_window_index orelse return;
                     if (focused_window_index == focused_workspace.window_list.items.len - 1) return;
 
-                    std.mem.swap(window.Window, &focused_workspace.window_list.items[focused_window_index], &focused_workspace.window_list.items[focused_window_index + 1]);
-                    std.debug.print("Moved window at workspace {}, window {} to the right\n", .{ main.focused_workspace_index + 1, focused_window_index });
+                    std.mem.swap(
+                        window.Window,
+                        &focused_workspace.window_list.items[focused_window_index],
+                        &focused_workspace.window_list.items[focused_window_index + 1],
+                    );
+                    std.debug.print(
+                        "Moved window at workspace {}, window {} to the right\n",
+                        .{ main.focused_workspace_index + 1, focused_window_index },
+                    );
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
-                    std.debug.print("Set focus in workspace {} on window {}\n", .{ main.focused_workspace_index + 1, focused_window_index + 1 });
+                    std.debug.print(
+                        "Set focus in workspace {} on window {}\n",
+                        .{ main.focused_workspace_index + 1, focused_window_index + 1 },
+                    );
 
-                    window_manager.manageDirty();
+                    main.applyLayout();
                 },
                 .focus_workspace => |number| {
                     main.focused_workspace_index = number - 1;
                     std.debug.print("Set focus on workspace {}\n", .{main.focused_workspace_index + 1});
-                    window_manager.manageDirty();
+
+                    main.applyLayout();
                 },
                 .reload_config => {
                     config.loadConfig(main.allocator);

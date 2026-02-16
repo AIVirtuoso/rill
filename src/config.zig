@@ -86,7 +86,13 @@ pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
     }
 }
 
-pub var config: Config = .{ .screen_width = 2560, .screen_height = 1440, .window_width_proportion = 0.5, .spawn_at_startup = &.{}, .keybinds = &default_keybinds };
+pub var config: Config = .{
+    .screen_width = 2560,
+    .screen_height = 1440,
+    .window_width_proportion = 0.5,
+    .spawn_at_startup = &.{},
+    .keybinds = &default_keybinds,
+};
 
 var default_keybinds = [_]keybind.Keybind{
     .{
