@@ -28,8 +28,9 @@ pub var animation_progress: ?usize = null;
 
 pub fn applyLayout() void {
     for (workspace_list) |workspace| {
+        const height = output.non_exclusive_height - 2 * config.config.outer_gap;
         for (workspace.window_list.items) |item| {
-            item.river_window.proposeDimensions(item.width, output.non_exclusive_height);
+            item.river_window.proposeDimensions(item.width, height);
         }
     }
 
@@ -56,7 +57,9 @@ pub fn applyLayout() void {
         const focused_window = &workspace.window_list.items[focused_window_index];
 
         var x_coordinate = output.non_exclusive_x + @divTrunc(output.non_exclusive_width, 2) - @divTrunc(focused_window.width, 2);
-        const y_coordinate = (@as(i32, @intCast(i_workspace)) - @as(i32, @intCast(focused_workspace_index))) * output.height + output.non_exclusive_y;
+        const y_coordinate = (@as(i32, @intCast(i_workspace)) - @as(i32, @intCast(focused_workspace_index))) * output.height +
+            output.non_exclusive_y +
+            config.config.outer_gap;
 
         animation_node_list.append(main.allocator, .{
             .river_node = focused_window.river_node,
@@ -76,6 +79,7 @@ pub fn applyLayout() void {
             i_window -= 1;
             const item = &workspace.window_list.items[i_window];
 
+            x_coordinate -= config.config.inner_gap;
             x_coordinate -= item.width;
 
             animation_node_list.append(main.allocator, .{
@@ -92,7 +96,11 @@ pub fn applyLayout() void {
             };
         }
 
-        x_coordinate = output.non_exclusive_x + @divTrunc(output.non_exclusive_width, 2) + @divTrunc(focused_window.width, 2);
+        x_coordinate = output.non_exclusive_x +
+            @divTrunc(output.non_exclusive_width, 2) +
+            @divTrunc(focused_window.width, 2) +
+            config.config.inner_gap;
+
         for (workspace.window_list.items[focused_window_index + 1 ..]) |*item| {
             animation_node_list.append(main.allocator, .{
                 .river_node = item.river_node,
@@ -108,6 +116,7 @@ pub fn applyLayout() void {
             };
 
             x_coordinate += item.width;
+            x_coordinate += config.config.inner_gap;
         }
 
         animation_progress = 0;

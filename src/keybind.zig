@@ -158,6 +158,7 @@ fn xkbBindingListener(
                 },
                 .reload_config => {
                     config.loadConfig(main.allocator);
+                    layout.applyLayout();
                 },
             }
         },

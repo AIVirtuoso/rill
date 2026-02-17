@@ -5,6 +5,8 @@ const river = wayland.client.river;
 const keybind = @import("keybind.zig");
 
 const Config = struct {
+    inner_gap: i32,
+    outer_gap: i32,
     window_width_proportion: f32,
     spawn_at_startup: []const []const []const u8,
     keybinds: []keybind.Keybind,
@@ -86,6 +88,8 @@ pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
 }
 
 pub var config: Config = .{
+    .inner_gap = 15,
+    .outer_gap = 15,
     .window_width_proportion = 0.5,
     .spawn_at_startup = &.{},
     .keybinds = &default_keybinds,
