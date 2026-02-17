@@ -5,6 +5,7 @@ const river = wayland.client.river;
 const main = @import("main.zig");
 const config = @import("config.zig");
 const layout = @import("layout.zig");
+const animation = @import("animation.zig");
 
 pub const Window = struct {
     river_window: *river.WindowV1,
@@ -12,7 +13,7 @@ pub const Window = struct {
     width: i32,
     x: i32,
     y: i32,
-    animation_info: layout.AnimationInfo,
+    animation_info: animation.AnimationInfo,
 };
 
 pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
@@ -30,7 +31,7 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         window_index = focused_window_index + 1;
     }
 
-    const animation_info = layout.AnimationInfo{
+    const animation_info = animation.AnimationInfo{
         .width_start = null,
         .width_finish = null,
         .x_start = null,
@@ -44,7 +45,7 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         .river_node = node,
         .width = @intFromFloat(width),
         .x = layout.output.width,
-        .y = 0,
+        .y = layout.output.non_exclusive_y + config.config.outer_gap,
         .animation_info = animation_info,
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});

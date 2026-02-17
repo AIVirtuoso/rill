@@ -7,6 +7,7 @@ const config = @import("config.zig");
 const window = @import("window.zig");
 const layout = @import("layout.zig");
 const keybind = @import("keybind.zig");
+const animation = @import("animation.zig");
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub const allocator = gpa.allocator();
@@ -50,7 +51,7 @@ pub fn main() !void {
             break;
         }
 
-        if (layout.animation_progress) |_| {
+        if (animation.animation_start_time) |_| {
             window_manager.manageDirty();
         }
     }
@@ -120,7 +121,7 @@ fn windowManagerListener(
             window.addWindow(allocator, window_event.id);
         },
         .manage_start => {
-            layout.animate();
+            animation.animate();
 
             for (layout.workspace_list) |workspace| {
                 for (workspace.window_list.items) |item| {

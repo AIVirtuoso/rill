@@ -5,6 +5,7 @@ const river = wayland.client.river;
 const main = @import("main.zig");
 const config = @import("config.zig");
 const window = @import("window.zig");
+const animation = @import("animation.zig");
 
 pub const Workspace = struct {
     window_list: std.ArrayList(window.Window),
@@ -13,16 +14,6 @@ pub const Workspace = struct {
 
 pub var workspace_list: [10]Workspace = undefined;
 pub var focused_workspace_index: usize = 0;
-
-pub const AnimationInfo = struct {
-    x_start: ?i32,
-    x_finish: ?i32,
-    y_start: ?i32,
-    y_finish: ?i32,
-    width_start: ?i32,
-    width_finish: ?i32,
-};
-pub var animation_progress: ?i32 = null;
 
 pub fn applyLayout() void {
     seat: {
@@ -93,67 +84,8 @@ pub fn applyLayout() void {
             x_finish += config.config.inner_gap;
         }
 
-        animation_progress = 0;
+        animation.animation_start_time = std.time.milliTimestamp();
     }
-}
-
-pub fn animate() void {
-    const step_percentage = 2;
-
-    const progress_percentage = animation_progress orelse return;
-    const progress = @as(f32, @floatFromInt(progress_percentage)) / 100;
-    const eased = 1 - std.math.pow(f32, 1 - progress, 3);
-
-    for (&workspace_list) |*workspace| {
-        for (workspace.window_list.items) |*item| {
-            const x_start = item.animation_info.x_start orelse continue;
-            const x_finish = item.animation_info.x_finish orelse continue;
-            const y_start = item.animation_info.y_start orelse continue;
-            const y_finish = item.animation_info.y_finish orelse continue;
-
-            const x_distance: f32 = @floatFromInt(x_finish - x_start);
-            const y_distance: f32 = @floatFromInt(y_finish - y_start);
-
-            const x_progress: i32 = @intFromFloat(x_distance * eased);
-            const y_progress: i32 = @intFromFloat(y_distance * eased);
-
-            if (progress_percentage < 100 - step_percentage) {
-                item.x = x_start + x_progress;
-                item.y = y_start + y_progress;
-            } else if (progress_percentage == 100 - step_percentage) {
-                item.x = x_finish;
-                item.y = y_finish;
-
-                item.animation_info.x_start = null;
-                item.animation_info.x_finish = null;
-                item.animation_info.y_start = null;
-                item.animation_info.y_finish = null;
-            }
-
-            const width_start = item.animation_info.width_start orelse continue;
-            const width_finish = item.animation_info.width_finish orelse continue;
-
-            const width_distance: f32 = @floatFromInt(width_finish - width_start);
-            const width_progress: i32 = @intFromFloat(width_distance * eased);
-
-            if (progress_percentage < 100 - step_percentage) {
-                item.width = width_start + width_progress;
-            } else if (progress_percentage == 100 - step_percentage) {
-                item.width = width_finish;
-
-                item.animation_info.width_start = null;
-                item.animation_info.width_finish = null;
-            }
-        }
-    }
-
-    if (progress_percentage + step_percentage == 100) {
-        animation_progress = null;
-    } else {
-        animation_progress = progress_percentage + step_percentage;
-    }
-
-    std.Thread.sleep(3 * std.time.ns_per_ms);
 }
 
 const Output = struct {
