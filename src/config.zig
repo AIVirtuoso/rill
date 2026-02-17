@@ -102,7 +102,7 @@ pub var config: Config = .{
 
 var default_keybinds = [_]keybind.Keybind{
     .{
-        .key = "c",
+        .key = "t",
         .modifier = .{ .mod4 = true },
         .action = .{ .spawn = &[_][]const u8{"alacritty"} },
     },
