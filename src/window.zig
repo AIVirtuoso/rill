@@ -12,6 +12,7 @@ pub const Window = struct {
     width: i32,
     x: i32,
     y: i32,
+    animation_info: layout.AnimationInfo,
 };
 
 pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
@@ -20,7 +21,8 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         return;
     };
 
-    const width = @as(f32, @floatFromInt(layout.output.non_exclusive_width)) * config.config.window_width_proportion;
+    const width = @as(f32, @floatFromInt(layout.output.non_exclusive_width)) *
+        config.config.window_width_proportion;
 
     const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
     var window_index: usize = 0;
@@ -28,12 +30,22 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         window_index = focused_window_index + 1;
     }
 
+    const animation_info = layout.AnimationInfo{
+        .width_start = null,
+        .width_finish = null,
+        .x_start = null,
+        .y_start = null,
+        .x_finish = null,
+        .y_finish = null,
+    };
+
     focused_workspace.window_list.insert(allocator, window_index, .{
         .river_window = window,
         .river_node = node,
         .width = @intFromFloat(width),
         .x = layout.output.width,
         .y = 0,
+        .animation_info = animation_info,
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
@@ -57,18 +69,29 @@ fn windowListener(
     switch (event) {
         .closed => {
             for (&layout.workspace_list, 0..) |*workspace, i_workspace| {
-                const focused_window_index = workspace.focused_window_index orelse continue;
+                const focused_window_index =
+                    workspace.focused_window_index orelse continue;
+
                 for (workspace.window_list.items, 0..) |item, i_window| {
                     if (item.river_window == river_window) {
-                        std.debug.print("Window at workspace {}, window {} is closed\n", .{ i_workspace + 1, i_window });
+                        std.debug.print(
+                            "Window at workspace {}, window {} is closed\n",
+                            .{ i_workspace + 1, i_window },
+                        );
 
                         if (i_window == workspace.focused_window_index) {
                             if (workspace.window_list.items.len == 1) {
                                 workspace.focused_window_index = null;
-                                std.debug.print("Workspace {} becomes empty\n", .{i_workspace + 1});
+                                std.debug.print(
+                                    "Workspace {} becomes empty\n",
+                                    .{i_workspace + 1},
+                                );
                             } else if (i_window != 0) {
                                 workspace.focused_window_index = focused_window_index - 1;
-                                std.debug.print("Set focus in workspace {} on window {}\n", .{ i_workspace + 1, focused_window_index - 1 });
+                                std.debug.print(
+                                    "Set focus in workspace {} on window {}\n",
+                                    .{ i_workspace + 1, focused_window_index - 1 },
+                                );
                             }
                         }
 

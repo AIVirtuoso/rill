@@ -14,28 +14,20 @@ pub const Workspace = struct {
 pub var workspace_list: [10]Workspace = undefined;
 pub var focused_workspace_index: usize = 0;
 
-const AnimationNode = struct {
-    river_node: *river.NodeV1,
-    x: *i32,
-    y: *i32,
-    x_start: i32,
-    y_start: i32,
-    x_finish: i32,
-    y_finish: i32,
+pub const AnimationInfo = struct {
+    x_start: ?i32,
+    x_finish: ?i32,
+    y_start: ?i32,
+    y_finish: ?i32,
+    width_start: ?i32,
+    width_finish: ?i32,
 };
-var animation_node_list = std.ArrayList(AnimationNode){};
 pub var animation_progress: ?i32 = null;
 
 pub fn applyLayout() void {
-    for (workspace_list) |workspace| {
-        const height = output.non_exclusive_height - 2 * config.config.outer_gap;
-        for (workspace.window_list.items) |item| {
-            item.river_window.proposeDimensions(item.width, height);
-        }
-    }
-
     seat: {
-        const focused_window_index = workspace_list[focused_workspace_index].focused_window_index orelse {
+        const focused_workspace = workspace_list[focused_workspace_index];
+        const focused_window_index = focused_workspace.focused_window_index orelse {
             break :seat;
         };
         const seat = main.river_seat orelse {
@@ -43,84 +35,62 @@ pub fn applyLayout() void {
             break :seat;
         };
 
-        seat.focusWindow(workspace_list[focused_workspace_index].window_list.items[focused_window_index].river_window);
+        seat.focusWindow(focused_workspace.window_list.items[focused_window_index].river_window);
         std.debug.print("Set focus of seat at workspace {}, window {}\n", .{
             focused_workspace_index + 1,
             focused_window_index,
         });
     }
 
-    animation_node_list.clearRetainingCapacity();
-
     for (&workspace_list, 0..) |*workspace, i_workspace| {
         const focused_window_index = workspace.focused_window_index orelse continue;
         const focused_window = &workspace.window_list.items[focused_window_index];
 
-        var x_coordinate = output.non_exclusive_x +
-            @divTrunc(output.non_exclusive_width, 2) -
-            @divTrunc(focused_window.width, 2);
-        const y_coordinate = output.height *
-            (@as(i32, @intCast(i_workspace)) -
-                @as(i32, @intCast(focused_workspace_index))) +
-            output.non_exclusive_y +
-            config.config.outer_gap;
+        var width_finish =
+            focused_window.animation_info.width_finish orelse focused_window.width;
+        var x_finish = output.non_exclusive_x +
+            @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width_finish, 2);
 
-        animation_node_list.append(main.allocator, .{
-            .river_node = focused_window.river_node,
-            .x = &focused_window.x,
-            .y = &focused_window.y,
-            .x_start = focused_window.x,
-            .y_start = focused_window.y,
-            .x_finish = x_coordinate,
-            .y_finish = y_coordinate,
-        }) catch |err| {
-            std.debug.print("Failed to add animation node: {}\n", .{err});
-            return;
-        };
+        const workspace_distance = @as(i32, @intCast(i_workspace)) -
+            @as(i32, @intCast(focused_workspace_index));
+        const y_finish = workspace_distance * output.height +
+            output.non_exclusive_y + config.config.outer_gap;
+
+        focused_window.animation_info.x_start = focused_window.x;
+        focused_window.animation_info.x_finish = x_finish;
+        focused_window.animation_info.y_start = focused_window.y;
+        focused_window.animation_info.y_finish = y_finish;
 
         var i_window: usize = focused_window_index;
         while (i_window > 0) {
             i_window -= 1;
             const item = &workspace.window_list.items[i_window];
 
-            x_coordinate -= config.config.inner_gap;
-            x_coordinate -= item.width;
+            width_finish = item.animation_info.width_finish orelse item.width;
+            x_finish -= config.config.inner_gap;
+            x_finish -= width_finish;
 
-            animation_node_list.append(main.allocator, .{
-                .river_node = item.river_node,
-                .x = &item.x,
-                .y = &item.y,
-                .x_start = item.x,
-                .y_start = item.y,
-                .x_finish = x_coordinate,
-                .y_finish = y_coordinate,
-            }) catch |err| {
-                std.debug.print("Failed to add animation node: {}\n", .{err});
-                return;
-            };
+            item.animation_info.x_start = item.x;
+            item.animation_info.x_finish = x_finish;
+            item.animation_info.y_start = item.y;
+            item.animation_info.y_finish = y_finish;
         }
 
-        x_coordinate = output.non_exclusive_x +
-            @divTrunc(output.non_exclusive_width, 2) +
-            @divTrunc(focused_window.width, 2) +
+        width_finish =
+            focused_window.animation_info.width_finish orelse focused_window.width;
+        x_finish = output.non_exclusive_x +
+            @divTrunc(output.non_exclusive_width, 2) + @divTrunc(width_finish, 2) +
             config.config.inner_gap;
 
         for (workspace.window_list.items[focused_window_index + 1 ..]) |*item| {
-            animation_node_list.append(main.allocator, .{
-                .river_node = item.river_node,
-                .x = &item.x,
-                .y = &item.y,
-                .x_start = item.x,
-                .y_start = item.y,
-                .x_finish = x_coordinate,
-                .y_finish = y_coordinate,
-            }) catch |err| {
-                std.debug.print("Failed to add animation node: {}\n", .{err});
-                return;
-            };
+            item.animation_info.x_start = item.x;
+            item.animation_info.x_finish = x_finish;
+            item.animation_info.y_start = item.y;
+            item.animation_info.y_finish = y_finish;
 
-            x_coordinate += item.width;
-            x_coordinate += config.config.inner_gap;
+            width_finish = item.animation_info.width_finish orelse item.width;
+            x_finish += width_finish;
+            x_finish += config.config.inner_gap;
         }
 
         animation_progress = 0;
@@ -132,22 +102,48 @@ pub fn animate() void {
 
     const progress_percentage = animation_progress orelse return;
     const progress = @as(f32, @floatFromInt(progress_percentage)) / 100;
+    const eased = 1 - std.math.pow(f32, 1 - progress, 3);
 
-    for (animation_node_list.items) |*item| {
-        const x_distance: f32 = @floatFromInt(item.x_finish - item.x_start);
-        const y_distance: f32 = @floatFromInt(item.y_finish - item.y_start);
+    for (&workspace_list) |*workspace| {
+        for (workspace.window_list.items) |*item| {
+            const x_start = item.animation_info.x_start orelse continue;
+            const x_finish = item.animation_info.x_finish orelse continue;
+            const y_start = item.animation_info.y_start orelse continue;
+            const y_finish = item.animation_info.y_finish orelse continue;
 
-        const eased = 1 - std.math.pow(f32, 1 - progress, 3);
+            const x_distance: f32 = @floatFromInt(x_finish - x_start);
+            const y_distance: f32 = @floatFromInt(y_finish - y_start);
 
-        const x_progress: i32 = @intFromFloat(x_distance * eased);
-        const y_progress: i32 = @intFromFloat(y_distance * eased);
+            const x_progress: i32 = @intFromFloat(x_distance * eased);
+            const y_progress: i32 = @intFromFloat(y_distance * eased);
 
-        if (progress_percentage < 100 - step_percentage) {
-            item.x.* = item.x_start + x_progress;
-            item.y.* = item.y_start + y_progress;
-        } else if (progress_percentage == 100 - step_percentage) {
-            item.x.* = item.x_finish;
-            item.y.* = item.y_finish;
+            if (progress_percentage < 100 - step_percentage) {
+                item.x = x_start + x_progress;
+                item.y = y_start + y_progress;
+            } else if (progress_percentage == 100 - step_percentage) {
+                item.x = x_finish;
+                item.y = y_finish;
+
+                item.animation_info.x_start = null;
+                item.animation_info.x_finish = null;
+                item.animation_info.y_start = null;
+                item.animation_info.y_finish = null;
+            }
+
+            const width_start = item.animation_info.width_start orelse continue;
+            const width_finish = item.animation_info.width_finish orelse continue;
+
+            const width_distance: f32 = @floatFromInt(width_finish - width_start);
+            const width_progress: i32 = @intFromFloat(width_distance * eased);
+
+            if (progress_percentage < 100 - step_percentage) {
+                item.width = width_start + width_progress;
+            } else if (progress_percentage == 100 - step_percentage) {
+                item.width = width_finish;
+
+                item.animation_info.width_start = null;
+                item.animation_info.width_finish = null;
+            }
         }
     }
 

@@ -27,14 +27,16 @@ pub fn loadConfig(allocator: std.mem.Allocator) void {
 
 fn readConfig(allocator: std.mem.Allocator) ?[:0]u8 {
     xdg_config_home: {
-        const xdg_config_home = std.process.getEnvVarOwned(allocator, "XDG_CONFIG_HOME") catch |err| {
-            std.debug.print("Failed to read $XDG_CONFIG_HOME: {}\n", .{err});
-            break :xdg_config_home;
-        };
-        const config_path = std.fs.path.join(allocator, &.{ xdg_config_home, "rill", "config.zon" }) catch |err| {
-            std.debug.print("Failed to join paths: {}\n", .{err});
-            break :xdg_config_home;
-        };
+        const xdg_config_home =
+            std.process.getEnvVarOwned(allocator, "XDG_CONFIG_HOME") catch |err| {
+                std.debug.print("Failed to read $XDG_CONFIG_HOME: {}\n", .{err});
+                break :xdg_config_home;
+            };
+        const config_path =
+            std.fs.path.join(allocator, &.{ xdg_config_home, "rill", "config.zon" }) catch |err| {
+                std.debug.print("Failed to join paths: {}\n", .{err});
+                break :xdg_config_home;
+            };
         const file_content = std.fs.cwd().readFileAllocOptions(
             allocator,
             config_path,
@@ -55,10 +57,11 @@ fn readConfig(allocator: std.mem.Allocator) ?[:0]u8 {
             std.debug.print("Failed to read $HOME: {}\n", .{err});
             break :home;
         };
-        const config_path = std.fs.path.join(allocator, &.{ home, ".config", "rill", "config.zon" }) catch |err| {
-            std.debug.print("Failed to join paths: {}\n", .{err});
-            break :home;
-        };
+        const config_path =
+            std.fs.path.join(allocator, &.{ home, ".config", "rill", "config.zon" }) catch |err| {
+                std.debug.print("Failed to join paths: {}\n", .{err});
+                break :home;
+            };
         const file_content = std.fs.cwd().readFileAllocOptions(
             allocator,
             config_path,

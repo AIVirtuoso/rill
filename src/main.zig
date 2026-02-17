@@ -120,17 +120,20 @@ fn windowManagerListener(
             window.addWindow(allocator, window_event.id);
         },
         .manage_start => {
-            window_manager.manageFinish();
-        },
-        .render_start => {
             layout.animate();
 
             for (layout.workspace_list) |workspace| {
                 for (workspace.window_list.items) |item| {
+                    const height = layout.output.non_exclusive_height -
+                        2 * config.config.outer_gap;
+                    item.river_window.proposeDimensions(item.width, height);
                     item.river_node.setPosition(item.x, item.y);
                 }
             }
 
+            window_manager.manageFinish();
+        },
+        .render_start => {
             window_manager.renderFinish();
         },
         else => {},
