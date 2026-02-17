@@ -24,7 +24,7 @@ const AnimationNode = struct {
     y_finish: i32,
 };
 var animation_node_list = std.ArrayList(AnimationNode){};
-pub var animation_progress: ?usize = null;
+pub var animation_progress: ?i32 = null;
 
 pub fn applyLayout() void {
     for (workspace_list) |workspace| {
@@ -128,25 +128,36 @@ pub fn applyLayout() void {
 }
 
 pub fn animate() void {
-    const progress = animation_progress orelse return;
+    const step_percentage = 2;
 
-    const steps = 50;
+    const progress_percentage = animation_progress orelse return;
+    const progress = @as(f32, @floatFromInt(progress_percentage)) / 100;
+
     for (animation_node_list.items) |*item| {
-        const x_step: i32 = @divTrunc((item.x_finish - item.x_start), steps);
-        const y_step: i32 = @divTrunc((item.y_finish - item.y_start), steps);
+        const x_distance: f32 = @floatFromInt(item.x_finish - item.x_start);
+        const y_distance: f32 = @floatFromInt(item.y_finish - item.y_start);
 
-        if (progress < steps - 1) {
-            item.x.* += x_step;
-            item.y.* += y_step;
-            animation_progress = progress + 1;
+        const eased = 1 - std.math.pow(f32, 1 - progress, 3);
 
-            std.Thread.sleep(1 * std.time.ns_per_ms);
-        } else if (progress == steps - 1) {
+        const x_progress: i32 = @intFromFloat(x_distance * eased);
+        const y_progress: i32 = @intFromFloat(y_distance * eased);
+
+        if (progress_percentage < 100 - step_percentage) {
+            item.x.* = item.x_start + x_progress;
+            item.y.* = item.y_start + y_progress;
+        } else if (progress_percentage == 100 - step_percentage) {
             item.x.* = item.x_finish;
             item.y.* = item.y_finish;
-            animation_progress = null;
         }
     }
+
+    if (progress_percentage + step_percentage == 100) {
+        animation_progress = null;
+    } else {
+        animation_progress = progress_percentage + step_percentage;
+    }
+
+    std.Thread.sleep(3 * std.time.ns_per_ms);
 }
 
 const Output = struct {
