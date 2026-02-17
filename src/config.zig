@@ -97,85 +97,85 @@ pub var config: Config = .{
 
 var default_keybinds = [_]keybind.Keybind{
     .{
-        .keysym = 0x0074,
+        .key = "c",
         .modifier = .{ .mod4 = true },
         .action = .{ .spawn = &[_][]const u8{"alacritty"} },
     },
 
     .{
-        .keysym = 0xff51,
+        .key = "h",
         .modifier = .{ .mod4 = true },
         .action = .focus_window_left,
     },
     .{
-        .keysym = 0xff53,
+        .key = "l",
         .modifier = .{ .mod4 = true },
         .action = .focus_window_right,
     },
     .{
-        .keysym = 0xff51,
+        .key = "h",
         .modifier = .{ .mod4 = true, .shift = true },
         .action = .move_window_left,
     },
     .{
-        .keysym = 0xff53,
+        .key = "l",
         .modifier = .{ .mod4 = true, .shift = true },
         .action = .move_window_right,
     },
 
     .{
-        .keysym = 0x0031,
+        .key = "1",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 1 },
     },
     .{
-        .keysym = 0x0032,
+        .key = "2",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 2 },
     },
     .{
-        .keysym = 0x0033,
+        .key = "3",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 3 },
     },
     .{
-        .keysym = 0x0034,
+        .key = "4",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 4 },
     },
     .{
-        .keysym = 0x0035,
+        .key = "5",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 5 },
     },
     .{
-        .keysym = 0x0036,
+        .key = "6",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 6 },
     },
     .{
-        .keysym = 0x0037,
+        .key = "7",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 7 },
     },
     .{
-        .keysym = 0x0038,
+        .key = "8",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 8 },
     },
     .{
-        .keysym = 0x0039,
+        .key = "9",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 9 },
     },
     .{
-        .keysym = 0x0030,
+        .key = "0",
         .modifier = .{ .mod4 = true },
         .action = .{ .focus_workspace = 10 },
     },
 
     .{
-        .keysym = 0x0072,
+        .key = "r",
         .modifier = .{ .mod4 = true, .shift = true },
         .action = .reload_config,
     },

@@ -108,7 +108,13 @@ fn windowManagerListener(
             river_seat = seat_event.id;
             std.debug.print("Found a seat\n", .{});
 
-            keybind.setupKeybinds(seat_event.id);
+            const xkb_bindings = river_xkb_bindings orelse {
+                std.debug.print("Failed to find River xkb bindings\n", .{});
+                return;
+            };
+            std.debug.print("Successfully found River xkb bindings\n", .{});
+
+            keybind.setupKeybinds(seat_event.id, xkb_bindings);
         },
         .window => |window_event| {
             window.addWindow(allocator, window_event.id);

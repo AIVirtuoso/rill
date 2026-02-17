@@ -56,8 +56,12 @@ pub fn applyLayout() void {
         const focused_window_index = workspace.focused_window_index orelse continue;
         const focused_window = &workspace.window_list.items[focused_window_index];
 
-        var x_coordinate = output.non_exclusive_x + @divTrunc(output.non_exclusive_width, 2) - @divTrunc(focused_window.width, 2);
-        const y_coordinate = (@as(i32, @intCast(i_workspace)) - @as(i32, @intCast(focused_workspace_index))) * output.height +
+        var x_coordinate = output.non_exclusive_x +
+            @divTrunc(output.non_exclusive_width, 2) -
+            @divTrunc(focused_window.width, 2);
+        const y_coordinate = output.height *
+            (@as(i32, @intCast(i_workspace)) -
+                @as(i32, @intCast(focused_workspace_index))) +
             output.non_exclusive_y +
             config.config.outer_gap;
 

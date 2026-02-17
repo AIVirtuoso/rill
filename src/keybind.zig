@@ -8,7 +8,7 @@ const window = @import("window.zig");
 const layout = @import("layout.zig");
 
 pub const Keybind = struct {
-    keysym: u32,
+    key: []const u8,
     modifier: river.SeatV1.Modifiers,
     action: Action,
 };
@@ -23,38 +23,37 @@ pub const Action = union(enum) {
     reload_config: void,
 };
 
-pub fn setupKeybinds(seat: *river.SeatV1) void {
-    const xkb_bindings = main.river_xkb_bindings orelse {
-        std.debug.print("Failed to find River xkb bindings\n", .{});
-        return;
-    };
-    std.debug.print("Successfully found River xkb bindings\n", .{});
-
+pub fn setupKeybinds(seat: *river.SeatV1, xkb_bindings: *river.XkbBindingsV1) void {
     for (config.config.keybinds) |*keybind| {
-        const river_xkb_binding: ?*river.XkbBindingV1 = xkb_bindings.getXkbBinding(seat, keybind.keysym, keybind.modifier) catch null;
-        const xkb_binding = river_xkb_binding orelse {
+        const keysym = parseKey(keybind.key) orelse continue;
+
+        const xkb_binding = xkb_bindings.getXkbBinding(seat, keysym, keybind.modifier) catch |err| {
+            std.debug.print("Failed to get xkb binding for ", .{});
             switch (keybind.action) {
                 .spawn => |command| {
-                    std.debug.print("Failed to get xkb binding for {s}\n", .{command[0]});
+                    std.debug.print("{s}", .{command[0]});
                 },
                 .focus_workspace => |number| {
-                    std.debug.print("Failed to get xkb binding for focus_workspace {}\n", .{number});
+                    std.debug.print("focus_workspace {}", .{number});
                 },
                 else => |tag| {
-                    std.debug.print("Failed to get xkb binding for {s}\n", .{@tagName(tag)});
+                    std.debug.print("{s}", .{@tagName(tag)});
                 },
             }
+            std.debug.print(": {}\n", .{err});
             continue;
         };
+
+        std.debug.print("Successfully got xkb binding for ", .{});
         switch (keybind.action) {
             .spawn => |command| {
-                std.debug.print("Successfully got xkb binding for {s}\n", .{command[0]});
+                std.debug.print("{s}\n", .{command[0]});
             },
             .focus_workspace => |number| {
-                std.debug.print("Successfully got xkb binding for focus_workspace {}\n", .{number});
+                std.debug.print("focus_workspace {}\n", .{number});
             },
             else => |tag| {
-                std.debug.print("Successfully got xkb binding for {s}\n", .{@tagName(tag)});
+                std.debug.print("{s}\n", .{@tagName(tag)});
             },
         }
 
@@ -164,4 +163,9 @@ fn xkbBindingListener(
         },
         else => {},
     }
+}
+
+fn parseKey(key: []const u8) ?u32 {
+    if (key.len == 1) return @as(u32, key[0]);
+    return null;
 }
