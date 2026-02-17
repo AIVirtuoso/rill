@@ -19,6 +19,7 @@ pub const Action = union(enum) {
     focus_window_right: void,
     move_window_left: void,
     move_window_right: void,
+    adjust_window_width: i32,
     focus_workspace: usize,
     reload_config: void,
 };
@@ -86,10 +87,7 @@ fn xkbBindingListener(
                     if (focused_window_index == 0) return;
 
                     focused_workspace.focused_window_index = focused_window_index - 1;
-                    std.debug.print(
-                        "Set focus in workspace {} on window {}\n",
-                        .{ layout.focused_workspace_index + 1, focused_window_index - 1 },
-                    );
+                    std.debug.print("Set focus on window {}\n", .{focused_window_index - 1});
 
                     layout.applyLayout();
                 },
@@ -98,10 +96,7 @@ fn xkbBindingListener(
                     if (focused_window_index == focused_workspace.window_list.items.len - 1) return;
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
-                    std.debug.print(
-                        "Set focus in workspace {} on window {}\n",
-                        .{ layout.focused_workspace_index + 1, focused_window_index + 1 },
-                    );
+                    std.debug.print("Set focus on window {}\n", .{focused_window_index + 1});
 
                     layout.applyLayout();
                 },
@@ -114,16 +109,10 @@ fn xkbBindingListener(
                         &focused_workspace.window_list.items[focused_window_index],
                         &focused_workspace.window_list.items[focused_window_index - 1],
                     );
-                    std.debug.print(
-                        "Moved window at workspace {}, window {} to the left\n",
-                        .{ layout.focused_workspace_index + 1, focused_window_index },
-                    );
+                    std.debug.print("Moved window {} to the left\n", .{focused_window_index});
 
                     focused_workspace.focused_window_index = focused_window_index - 1;
-                    std.debug.print(
-                        "Set focus in workspace {} on window {}\n",
-                        .{ layout.focused_workspace_index + 1, focused_window_index - 1 },
-                    );
+                    std.debug.print("Set focus on window {}\n", .{focused_window_index - 1});
 
                     layout.applyLayout();
                 },
@@ -136,16 +125,19 @@ fn xkbBindingListener(
                         &focused_workspace.window_list.items[focused_window_index],
                         &focused_workspace.window_list.items[focused_window_index + 1],
                     );
-                    std.debug.print(
-                        "Moved window at workspace {}, window {} to the right\n",
-                        .{ layout.focused_workspace_index + 1, focused_window_index },
-                    );
+                    std.debug.print("Moved window {} to the right\n", .{focused_window_index});
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
-                    std.debug.print(
-                        "Set focus in workspace {} on window {}\n",
-                        .{ layout.focused_workspace_index + 1, focused_window_index + 1 },
-                    );
+                    std.debug.print("Set focus on window {}\n", .{focused_window_index + 1});
+
+                    layout.applyLayout();
+                },
+                .adjust_window_width => |percentage| {
+                    const focused_window_index = focused_workspace.focused_window_index orelse return;
+
+                    focused_workspace.window_list.items[focused_window_index].width +=
+                        @divTrunc(layout.output.non_exclusive_width * percentage, 100);
+                    std.debug.print("Adjusted width of window by {}%\n", .{percentage});
 
                     layout.applyLayout();
                 },

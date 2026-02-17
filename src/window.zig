@@ -38,10 +38,10 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
-    std.debug.print("Added a window at workspace {}, window {}\n", .{ layout.focused_workspace_index + 1, window_index });
+    std.debug.print("Added a window at index {}\n", .{window_index});
 
     focused_workspace.focused_window_index = window_index;
-    std.debug.print("Set focus in workspace {} on window {}\n", .{ layout.focused_workspace_index + 1, window_index });
+    std.debug.print("Set focus on window {}\n", .{window_index});
 
     window.setListener(?*anyopaque, windowListener, null);
 

@@ -122,6 +122,16 @@ var default_keybinds = [_]keybind.Keybind{
         .modifier = .{ .mod4 = true, .shift = true },
         .action = .move_window_right,
     },
+    .{
+        .key = "-",
+        .modifier = .{ .mod4 = true },
+        .action = .{ .adjust_window_width = -10 },
+    },
+    .{
+        .key = "=",
+        .modifier = .{ .mod4 = true },
+        .action = .{ .adjust_window_width = 10 },
+    },
 
     .{
         .key = "1",
