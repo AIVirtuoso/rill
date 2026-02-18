@@ -16,22 +16,28 @@ pub var workspace_list: [10]Workspace = undefined;
 pub var focused_workspace_index: usize = 0;
 
 pub fn applyLayout() void {
-    seat: {
+    focused_window: {
         const focused_workspace = workspace_list[focused_workspace_index];
-        const focused_window_index = focused_workspace.focused_window_index orelse {
-            break :seat;
-        };
+        const focused_window_index = focused_workspace.focused_window_index orelse
+            break :focused_window;
+        const focused_window = focused_workspace.window_list.items[focused_window_index];
+
         const seat = main.river_seat orelse {
             std.debug.print("Failed to find a seat\n", .{});
-            break :seat;
+            break :focused_window;
         };
+        seat.focusWindow(focused_window.river_window);
 
-        seat.focusWindow(focused_workspace.window_list.items[focused_window_index].river_window);
+        if (focused_window.fullscreen_when_focused)
+            focused_window.river_window.fullscreen(output.river_output);
     }
 
     for (&workspace_list, 0..) |*workspace, i_workspace| {
         const focused_window_index = workspace.focused_window_index orelse continue;
         const focused_window = &workspace.window_list.items[focused_window_index];
+
+        if (i_workspace != focused_workspace_index)
+            focused_window.river_window.exitFullscreen();
 
         var width_finish =
             focused_window.animation_info.width_finish orelse focused_window.width;
@@ -48,10 +54,12 @@ pub fn applyLayout() void {
         focused_window.animation_info.y_start = focused_window.y;
         focused_window.animation_info.y_finish = y_finish;
 
-        var i_window: usize = focused_window_index;
+        var i_window = focused_window_index;
         while (i_window > 0) {
             i_window -= 1;
             const item = &workspace.window_list.items[i_window];
+
+            item.river_window.exitFullscreen();
 
             width_finish = item.animation_info.width_finish orelse item.width;
             x_finish -= config.config.inner_gap;
@@ -70,6 +78,8 @@ pub fn applyLayout() void {
             config.config.inner_gap;
 
         for (workspace.window_list.items[focused_window_index + 1 ..]) |*item| {
+            item.river_window.exitFullscreen();
+
             item.animation_info.x_start = item.x;
             item.animation_info.x_finish = x_finish;
             item.animation_info.y_start = item.y;

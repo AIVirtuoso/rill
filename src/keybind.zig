@@ -70,7 +70,7 @@ fn xkbBindingListener(
                     const focused_window_index =
                         focused_workspace.focused_window_index orelse return;
                     const focused_window =
-                        &focused_workspace.window_list.items[focused_window_index];
+                        focused_workspace.window_list.items[focused_window_index];
 
                     focused_window.river_window.close();
                 },
@@ -85,7 +85,8 @@ fn xkbBindingListener(
                 .focus_window_right => {
                     const focused_window_index =
                         focused_workspace.focused_window_index orelse return;
-                    if (focused_window_index == focused_workspace.window_list.items.len - 1) return;
+                    if (focused_window_index == focused_workspace.window_list.items.len - 1)
+                        return;
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
                     layout.applyLayout();
@@ -107,7 +108,8 @@ fn xkbBindingListener(
                 .move_window_right => {
                     const focused_window_index =
                         focused_workspace.focused_window_index orelse return;
-                    if (focused_window_index == focused_workspace.window_list.items.len - 1) return;
+                    if (focused_window_index == focused_workspace.window_list.items.len - 1)
+                        return;
 
                     std.mem.swap(
                         window.Window,
@@ -123,6 +125,7 @@ fn xkbBindingListener(
                         focused_workspace.focused_window_index orelse return;
                     var focused_window =
                         &focused_workspace.window_list.items[focused_window_index];
+                    if (focused_window.fullscreen_when_focused) return;
 
                     const width_finish = focused_window.width +
                         @divTrunc(layout.output.non_exclusive_width * percentage, 100);
@@ -139,14 +142,14 @@ fn xkbBindingListener(
                     const focused_window =
                         &focused_workspace.window_list.items[focused_window_index];
 
-                    if (!focused_window.is_fullscreen) {
-                        focused_window.river_window.fullscreen(layout.output.river_output);
+                    if (!focused_window.fullscreen_when_focused) {
+                        focused_window.fullscreen_when_focused = true;
                         focused_window.river_window.informFullscreen();
-                        focused_window.is_fullscreen = true;
-                    } else if (focused_window.is_fullscreen) {
-                        focused_window.river_window.exitFullscreen();
+                        focused_window.river_window.fullscreen(layout.output.river_output);
+                    } else if (focused_window.fullscreen_when_focused) {
+                        focused_window.fullscreen_when_focused = false;
                         focused_window.river_window.informNotFullscreen();
-                        focused_window.is_fullscreen = false;
+                        focused_window.river_window.exitFullscreen();
                     }
                 },
                 .focus_workspace => |number| {

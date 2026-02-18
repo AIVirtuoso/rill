@@ -13,16 +13,15 @@ pub const Window = struct {
     width: i32,
     x: i32,
     y: i32,
-    is_fullscreen: bool,
+    fullscreen_when_focused: bool,
     animation_info: animation.AnimationInfo,
 };
 
 pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
     const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
     var window_index: usize = 0;
-    if (focused_workspace.focused_window_index) |focused_window_index| {
+    if (focused_workspace.focused_window_index) |focused_window_index|
         window_index = focused_window_index + 1;
-    }
 
     const node = window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
@@ -47,7 +46,7 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         .width = @intFromFloat(width),
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.outer_gap,
-        .is_fullscreen = false,
+        .fullscreen_when_focused = false,
         .animation_info = animation_info,
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
@@ -87,14 +86,14 @@ fn windowListener(
                     layout.applyLayout();
                 },
                 .fullscreen_requested => {
-                    river_window.fullscreen(layout.output.river_output);
+                    window.fullscreen_when_focused = true;
                     river_window.informFullscreen();
-                    window.is_fullscreen = true;
+                    layout.applyLayout();
                 },
                 .exit_fullscreen_requested => {
-                    river_window.exitFullscreen();
+                    window.fullscreen_when_focused = false;
                     river_window.informNotFullscreen();
-                    window.is_fullscreen = false;
+                    river_window.exitFullscreen();
                 },
                 else => {},
             }

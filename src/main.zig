@@ -50,9 +50,8 @@ pub fn main() !void {
             break;
         }
 
-        if (animation.animation_start_time) |_| {
+        if (animation.animation_start_time) |_|
             window_manager.manageDirty();
-        }
     }
 }
 
@@ -111,9 +110,8 @@ fn windowManagerListener(
 
             keybind.setupKeybinds(seat_event.id, xkb_bindings);
         },
-        .window => |window_event| {
-            window.addWindow(allocator, window_event.id);
-        },
+        .window => |window_event| window.addWindow(allocator, window_event.id),
+
         .manage_start => {
             animation.animate();
             const height = layout.output.non_exclusive_height - 2 * config.config.outer_gap;
@@ -127,9 +125,7 @@ fn windowManagerListener(
 
             window_manager.manageFinish();
         },
-        .render_start => {
-            window_manager.renderFinish();
-        },
+        .render_start => window_manager.renderFinish(),
         else => {},
     }
 }
