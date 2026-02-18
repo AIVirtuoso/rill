@@ -5,7 +5,7 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 * Scrolling layout
 * Workspaces
 * Animation
-* Config with live reload
+* Config with live reloading
 
 <video src="https://codeberg.org/lzj15/rill/raw/branch/main/assets/recording.mp4" controls>
 </video>
@@ -43,4 +43,4 @@ zig build -Doptimize=ReleaseSafe
 Add `rill` to the river init file, or directly run `river -c rill`.
 
 ## Configuration
-Rill is configured with a ZON file at `$XDG_CONFIG_HOME/rill/config.zon`, fallback to `$HOME/rill/config.zon`. See [default config](https://codeberg.org/lzj15/rill/src/branch/main/assets/config.zon) as an example.
+Rill is configured with a ZON file at `$XDG_CONFIG_HOME/rill/config.zon`, fallback to `$HOME/.config/rill/config.zon`. See [default config](https://codeberg.org/lzj15/rill/src/branch/main/assets/config.zon) as an example.
