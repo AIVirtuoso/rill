@@ -14,6 +14,7 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | Binding | Action |
 |----------|--------|
 | `Super t` | Open alacritty |
+| `Super q` | Close window |
 | `Super h` | Focus to window on the left |
 | `Super l` | Focus to window on the right |
 | `Super Shift h` | Move window to the left |

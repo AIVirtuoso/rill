@@ -15,6 +15,7 @@ pub const Keybind = struct {
 
 pub const Action = union(enum) {
     spawn: []const []const u8,
+    close_window: void,
     focus_window_left: void,
     focus_window_right: void,
     move_window_left: void,
@@ -65,6 +66,14 @@ fn xkbBindingListener(
                         std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
                     };
                 },
+                .close_window => {
+                    const focused_window_index =
+                        focused_workspace.focused_window_index orelse return;
+                    const focused_window =
+                        &focused_workspace.window_list.items[focused_window_index];
+
+                    focused_window.river_window.close();
+                },
                 .focus_window_left => {
                     const focused_window_index =
                         focused_workspace.focused_window_index orelse return;
@@ -112,7 +121,8 @@ fn xkbBindingListener(
                 .adjust_window_width => |percentage| {
                     const focused_window_index =
                         focused_workspace.focused_window_index orelse return;
-                    var focused_window = &focused_workspace.window_list.items[focused_window_index];
+                    var focused_window =
+                        &focused_workspace.window_list.items[focused_window_index];
 
                     focused_window.animation_info.width_start = focused_window.width;
                     focused_window.animation_info.width_finish = focused_window.width +
@@ -123,7 +133,8 @@ fn xkbBindingListener(
                 .toggle_fullscreen => {
                     const focused_window_index =
                         focused_workspace.focused_window_index orelse return;
-                    const focused_window = &focused_workspace.window_list.items[focused_window_index];
+                    const focused_window =
+                        &focused_workspace.window_list.items[focused_window_index];
 
                     if (!focused_window.is_fullscreen) {
                         focused_window.river_window.fullscreen(layout.output.river_output);

@@ -107,6 +107,11 @@ var default_keybinds = [_]keybind.Keybind{
     },
 
     .{
+        .key = "q",
+        .modifier = .{ .mod4 = true },
+        .action = .close_window,
+    },
+    .{
         .key = "h",
         .modifier = .{ .mod4 = true },
         .action = .focus_window_left,
