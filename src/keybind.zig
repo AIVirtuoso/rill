@@ -124,9 +124,12 @@ fn xkbBindingListener(
                     var focused_window =
                         &focused_workspace.window_list.items[focused_window_index];
 
-                    focused_window.animation_info.width_start = focused_window.width;
-                    focused_window.animation_info.width_finish = focused_window.width +
+                    const width_finish = focused_window.width +
                         @divTrunc(layout.output.non_exclusive_width * percentage, 100);
+                    if (width_finish < 0) return;
+
+                    focused_window.animation_info.width_start = focused_window.width;
+                    focused_window.animation_info.width_finish = width_finish;
 
                     layout.applyLayout();
                 },

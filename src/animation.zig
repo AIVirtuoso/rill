@@ -15,8 +15,8 @@ pub var animation_start_time: ?i64 = null;
 
 pub fn animate() void {
     const start_time = animation_start_time orelse return;
-    const duration = config.config.animation_duration;
 
+    const duration = config.config.animation_duration;
     const progress = @as(f32, @floatFromInt(std.time.milliTimestamp() - start_time)) /
         @as(f32, @floatFromInt(duration));
     const eased = 1 - std.math.pow(f32, 1 - progress, 3);
