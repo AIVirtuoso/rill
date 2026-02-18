@@ -2,10 +2,10 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const main = @import("main.zig");
 const config = @import("config.zig");
-const window = @import("window.zig");
 const layout = @import("layout.zig");
+const main = @import("main.zig");
+const window = @import("window.zig");
 
 pub const Keybind = struct {
     key: []const u8,
@@ -20,6 +20,7 @@ pub const Action = union(enum) {
     move_window_left: void,
     move_window_right: void,
     adjust_window_width: i32,
+    toggle_fullscreen: void,
     focus_workspace: usize,
     reload_config: void,
 };
@@ -33,34 +34,9 @@ pub fn setupKeybinds(seat: *river.SeatV1, xkb_bindings: *river.XkbBindingsV1) vo
             keysym,
             keybind.modifier,
         ) catch |err| {
-            std.debug.print("Failed to get xkb binding for ", .{});
-            switch (keybind.action) {
-                .spawn => |command| {
-                    std.debug.print("{s}", .{command[0]});
-                },
-                .focus_workspace => |number| {
-                    std.debug.print("focus_workspace {}", .{number});
-                },
-                else => |tag| {
-                    std.debug.print("{s}", .{@tagName(tag)});
-                },
-            }
-            std.debug.print(": {}\n", .{err});
+            std.debug.print("Failed to get xkb binding: {}\n", .{err});
             continue;
         };
-
-        std.debug.print("Successfully got xkb binding for ", .{});
-        switch (keybind.action) {
-            .spawn => |command| {
-                std.debug.print("{s}\n", .{command[0]});
-            },
-            .focus_workspace => |number| {
-                std.debug.print("focus_workspace {}\n", .{number});
-            },
-            else => |tag| {
-                std.debug.print("{s}\n", .{@tagName(tag)});
-            },
-        }
 
         xkb_binding.setListener(
             ?*anyopaque,
@@ -88,7 +64,6 @@ fn xkbBindingListener(
                     child.spawn() catch |err| {
                         std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
                     };
-                    std.debug.print("Spawned {s}\n", .{command[0]});
                 },
                 .focus_window_left => {
                     const focused_window_index =
@@ -96,8 +71,6 @@ fn xkbBindingListener(
                     if (focused_window_index == 0) return;
 
                     focused_workspace.focused_window_index = focused_window_index - 1;
-                    std.debug.print("Set focus on window {}\n", .{focused_window_index - 1});
-
                     layout.applyLayout();
                 },
                 .focus_window_right => {
@@ -106,8 +79,6 @@ fn xkbBindingListener(
                     if (focused_window_index == focused_workspace.window_list.items.len - 1) return;
 
                     focused_workspace.focused_window_index = focused_window_index + 1;
-                    std.debug.print("Set focus on window {}\n", .{focused_window_index + 1});
-
                     layout.applyLayout();
                 },
                 .move_window_left => {
@@ -120,10 +91,7 @@ fn xkbBindingListener(
                         &focused_workspace.window_list.items[focused_window_index],
                         &focused_workspace.window_list.items[focused_window_index - 1],
                     );
-                    std.debug.print("Moved window {} to the left\n", .{focused_window_index});
-
                     focused_workspace.focused_window_index = focused_window_index - 1;
-                    std.debug.print("Set focus on window {}\n", .{focused_window_index - 1});
 
                     layout.applyLayout();
                 },
@@ -137,10 +105,7 @@ fn xkbBindingListener(
                         &focused_workspace.window_list.items[focused_window_index],
                         &focused_workspace.window_list.items[focused_window_index + 1],
                     );
-                    std.debug.print("Moved window {} to the right\n", .{focused_window_index});
-
                     focused_workspace.focused_window_index = focused_window_index + 1;
-                    std.debug.print("Set focus on window {}\n", .{focused_window_index + 1});
 
                     layout.applyLayout();
                 },
@@ -152,17 +117,26 @@ fn xkbBindingListener(
                     focused_window.animation_info.width_start = focused_window.width;
                     focused_window.animation_info.width_finish = focused_window.width +
                         @divTrunc(layout.output.non_exclusive_width * percentage, 100);
-                    std.debug.print("Adjusted width of window by {}%\n", .{percentage});
 
                     layout.applyLayout();
                 },
+                .toggle_fullscreen => {
+                    const focused_window_index =
+                        focused_workspace.focused_window_index orelse return;
+                    const focused_window = &focused_workspace.window_list.items[focused_window_index];
+
+                    if (!focused_window.is_fullscreen) {
+                        focused_window.river_window.fullscreen(layout.output.river_output);
+                        focused_window.river_window.informFullscreen();
+                        focused_window.is_fullscreen = true;
+                    } else if (focused_window.is_fullscreen) {
+                        focused_window.river_window.exitFullscreen();
+                        focused_window.river_window.informNotFullscreen();
+                        focused_window.is_fullscreen = false;
+                    }
+                },
                 .focus_workspace => |number| {
                     layout.focused_workspace_index = number - 1;
-                    std.debug.print(
-                        "Set focus on workspace {}\n",
-                        .{layout.focused_workspace_index + 1},
-                    );
-
                     layout.applyLayout();
                 },
                 .reload_config => {

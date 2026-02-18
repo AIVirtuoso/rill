@@ -16,12 +16,14 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super t` | Open alacritty |
 | `Super h` | Focus to window on the left |
 | `Super l` | Focus to window on the right |
-| `Super Shift h` | Move focused window to the left |
-| `Super Shift l` | Move focused window to the right |
-| `Super -` | Increase the width of focused window by 10% |
-| `Super =` | Decrease the width of focused window by 10% |
+| `Super Shift h` | Move window to the left |
+| `Super Shift l` | Move window to the right |
+| `Super -` | Increase window's width by 10% |
+| `Super =` | Decrease window's width by 10% |
+| `Super Shift f` | Toggle fullscreen |
 | `Super 1~0` | Focus to workspace 1~10 |
 | `Super Shift r` | Reload config |
+| `Ctrl Alt Delete` | Exit River |
 
 ## Dependencies
 * Zig 0.15

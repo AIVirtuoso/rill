@@ -57,7 +57,6 @@ pub fn animate() void {
                 item.width = width_start + width_progress;
             } else {
                 item.width = width_finish;
-
                 item.animation_info.width_start = null;
                 item.animation_info.width_finish = null;
             }

@@ -2,10 +2,10 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const main = @import("main.zig");
-const config = @import("config.zig");
-const window = @import("window.zig");
 const animation = @import("animation.zig");
+const config = @import("config.zig");
+const main = @import("main.zig");
+const window = @import("window.zig");
 
 pub const Workspace = struct {
     window_list: std.ArrayList(window.Window),
@@ -27,10 +27,6 @@ pub fn applyLayout() void {
         };
 
         seat.focusWindow(focused_workspace.window_list.items[focused_window_index].river_window);
-        std.debug.print("Set focus of seat at workspace {}, window {}\n", .{
-            focused_workspace_index + 1,
-            focused_window_index,
-        });
     }
 
     for (&workspace_list, 0..) |*workspace, i_workspace| {
@@ -89,6 +85,7 @@ pub fn applyLayout() void {
 }
 
 const Output = struct {
+    river_output: *river.OutputV1,
     width: i32,
     height: i32,
     non_exclusive_width: i32,
@@ -108,15 +105,12 @@ pub fn outputListener(
 
     switch (event) {
         .dimensions => |dimensions| {
-            output = .{
-                .width = dimensions.width,
-                .height = dimensions.height,
-                .non_exclusive_width = dimensions.width,
-                .non_exclusive_height = dimensions.height,
-                .non_exclusive_x = 0,
-                .non_exclusive_y = 0,
-            };
-            std.debug.print("Output dimension: {}x{}\n", .{ output.width, output.height });
+            output.width = dimensions.width;
+            output.height = dimensions.height;
+            output.non_exclusive_width = dimensions.width;
+            output.non_exclusive_height = dimensions.height;
+            output.non_exclusive_x = 0;
+            output.non_exclusive_y = 0;
         },
         else => {},
     }

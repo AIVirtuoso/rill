@@ -1,21 +1,21 @@
 const std = @import("std");
 const wayland = @import("wayland");
-const wl = wayland.client.wl;
 const river = wayland.client.river;
+const wl = wayland.client.wl;
 
-const config = @import("config.zig");
-const window = @import("window.zig");
-const layout = @import("layout.zig");
-const keybind = @import("keybind.zig");
 const animation = @import("animation.zig");
+const config = @import("config.zig");
+const keybind = @import("keybind.zig");
+const layout = @import("layout.zig");
+const window = @import("window.zig");
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub const allocator = gpa.allocator();
 
-pub var river_window_manager: ?*river.WindowManagerV1 = null;
-pub var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
-pub var river_seat: ?*river.SeatV1 = null;
+var river_window_manager: ?*river.WindowManagerV1 = null;
+var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
 var river_layer_shell: ?*river.LayerShellV1 = null;
+pub var river_seat: ?*river.SeatV1 = null;
 
 pub fn main() !void {
     const display = try wl.Display.connect(null);
@@ -31,11 +31,10 @@ pub fn main() !void {
         std.debug.print("Failed to find River window manager\n", .{});
         return;
     };
-    std.debug.print("Successfully found River window manager\n", .{});
     window_manager.setListener(?*anyopaque, windowManagerListener, null);
 
-    for (&layout.workspace_list) |*workspace| {
-        workspace.* = layout.Workspace{
+    for (&layout.workspace_list) |*item| {
+        item.* = layout.Workspace{
             .window_list = std.ArrayList(window.Window){},
             .focused_window_index = null,
         };
@@ -74,7 +73,7 @@ fn registryListener(
                 river_layer_shell = registry.bind(global.name, river.LayerShellV1, 1) catch null;
             }
         },
-        .global_remove => |_| {},
+        .global_remove => {},
     }
 }
 
@@ -87,33 +86,28 @@ fn windowManagerListener(
 
     switch (event) {
         .output => |output_event| {
-            std.debug.print("Found an output\n", .{});
-
+            layout.output.river_output = output_event.id;
             output_event.id.setListener(?*anyopaque, layout.outputListener, null);
 
             const layer_shell = river_layer_shell orelse {
                 std.debug.print("Failed to find a layer shell\n", .{});
                 return;
             };
-            std.debug.print("Successfully found River layer shell\n", .{});
 
             const layer_shell_output = layer_shell.getOutput(output_event.id) catch {
                 std.debug.print("Failed to get layer shell output\n", .{});
                 return;
             };
-            std.debug.print("Successfully got layer shell output\n", .{});
 
             layer_shell_output.setListener(?*anyopaque, layout.layerShellOutputListener, null);
         },
         .seat => |seat_event| {
             river_seat = seat_event.id;
-            std.debug.print("Found a seat\n", .{});
 
             const xkb_bindings = river_xkb_bindings orelse {
                 std.debug.print("Failed to find River xkb bindings\n", .{});
                 return;
             };
-            std.debug.print("Successfully found River xkb bindings\n", .{});
 
             keybind.setupKeybinds(seat_event.id, xkb_bindings);
         },
@@ -122,11 +116,10 @@ fn windowManagerListener(
         },
         .manage_start => {
             animation.animate();
+            const height = layout.output.non_exclusive_height - 2 * config.config.outer_gap;
 
             for (layout.workspace_list) |workspace| {
                 for (workspace.window_list.items) |item| {
-                    const height = layout.output.non_exclusive_height -
-                        2 * config.config.outer_gap;
                     item.river_window.proposeDimensions(item.width, height);
                     item.river_node.setPosition(item.x, item.y);
                 }

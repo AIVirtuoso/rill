@@ -87,7 +87,6 @@ pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
         child.spawn() catch |err| {
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
         };
-        std.debug.print("Spawned {s}\n", .{command[0]});
     }
 }
 
@@ -136,6 +135,11 @@ var default_keybinds = [_]keybind.Keybind{
         .key = "=",
         .modifier = .{ .mod4 = true },
         .action = .{ .adjust_window_width = 10 },
+    },
+    .{
+        .key = "f",
+        .modifier = .{ .mod4 = true, .shift = true },
+        .action = .toggle_fullscreen,
     },
 
     .{

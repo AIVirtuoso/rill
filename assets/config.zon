@@ -55,6 +55,11 @@
             // increase by 10% of the screen's available width
             .action = .{ .adjust_window_width = 10 },
         },
+        .{
+            .key = "f",
+            .modifier = .{ .mod4 = true, .shift = true },
+            .action = .toggle_fullscreen,
+        },
 
         .{
             .key = "1",

@@ -2,10 +2,10 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const main = @import("main.zig");
+const animation = @import("animation.zig");
 const config = @import("config.zig");
 const layout = @import("layout.zig");
-const animation = @import("animation.zig");
+const main = @import("main.zig");
 
 pub const Window = struct {
     river_window: *river.WindowV1,
@@ -13,10 +13,17 @@ pub const Window = struct {
     width: i32,
     x: i32,
     y: i32,
+    is_fullscreen: bool,
     animation_info: animation.AnimationInfo,
 };
 
 pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
+    const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
+    var window_index: usize = 0;
+    if (focused_workspace.focused_window_index) |focused_window_index| {
+        window_index = focused_window_index + 1;
+    }
+
     const node = window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
         return;
@@ -24,12 +31,6 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
 
     const width = @as(f32, @floatFromInt(layout.output.non_exclusive_width)) *
         config.config.window_width_proportion;
-
-    const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
-    var window_index: usize = 0;
-    if (focused_workspace.focused_window_index) |focused_window_index| {
-        window_index = focused_window_index + 1;
-    }
 
     const animation_info = animation.AnimationInfo{
         .width_start = null,
@@ -46,18 +47,15 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         .width = @intFromFloat(width),
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.outer_gap,
+        .is_fullscreen = false,
         .animation_info = animation_info,
     }) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
-    std.debug.print("Added a window at index {}\n", .{window_index});
-
     focused_workspace.focused_window_index = window_index;
-    std.debug.print("Set focus on window {}\n", .{window_index});
 
     window.setListener(?*anyopaque, windowListener, null);
-
     layout.applyLayout();
 }
 
@@ -67,44 +65,41 @@ fn windowListener(
     data: ?*anyopaque,
 ) void {
     _ = data;
-    switch (event) {
-        .closed => {
-            for (&layout.workspace_list, 0..) |*workspace, i_workspace| {
-                const focused_window_index =
-                    workspace.focused_window_index orelse continue;
 
-                for (workspace.window_list.items, 0..) |item, i_window| {
-                    if (item.river_window == river_window) {
-                        std.debug.print(
-                            "Window at workspace {}, window {} is closed\n",
-                            .{ i_workspace + 1, i_window },
-                        );
+    for (&layout.workspace_list) |*workspace| {
+        const focused_window_index = workspace.focused_window_index orelse continue;
 
-                        if (i_window == workspace.focused_window_index) {
-                            if (workspace.window_list.items.len == 1) {
-                                workspace.focused_window_index = null;
-                                std.debug.print(
-                                    "Workspace {} becomes empty\n",
-                                    .{i_workspace + 1},
-                                );
-                            } else if (i_window != 0) {
-                                workspace.focused_window_index = focused_window_index - 1;
-                                std.debug.print(
-                                    "Set focus in workspace {} on window {}\n",
-                                    .{ i_workspace + 1, focused_window_index - 1 },
-                                );
-                            }
+        for (workspace.window_list.items, 0..) |*window, i| {
+            if (window.river_window != river_window) continue;
+
+            switch (event) {
+                .closed => {
+                    if (i == workspace.focused_window_index) {
+                        if (workspace.window_list.items.len == 1) {
+                            workspace.focused_window_index = null;
+                        } else if (i != 0) {
+                            workspace.focused_window_index = focused_window_index - 1;
                         }
-
-                        _ = workspace.window_list.orderedRemove(i_window);
-                        river_window.destroy();
-
-                        layout.applyLayout();
-                        return;
                     }
-                }
+
+                    _ = workspace.window_list.orderedRemove(i);
+                    river_window.destroy();
+                    layout.applyLayout();
+                },
+                .fullscreen_requested => {
+                    river_window.fullscreen(layout.output.river_output);
+                    river_window.informFullscreen();
+                    window.is_fullscreen = true;
+                },
+                .exit_fullscreen_requested => {
+                    river_window.exitFullscreen();
+                    river_window.informNotFullscreen();
+                    window.is_fullscreen = false;
+                },
+                else => {},
             }
-        },
-        else => {},
+
+            return;
+        }
     }
 }
