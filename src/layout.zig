@@ -28,6 +28,7 @@ pub fn applyLayout() void {
         };
         seat.focusWindow(focused_window.river_window);
 
+        focused_window.river_node.placeTop();
         if (focused_window.fullscreen_when_focused)
             focused_window.river_window.fullscreen(output.river_output);
     }
