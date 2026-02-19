@@ -13,8 +13,8 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub const allocator = gpa.allocator();
 
 var river_window_manager: ?*river.WindowManagerV1 = null;
-var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
 var river_layer_shell: ?*river.LayerShellV1 = null;
+pub var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
 pub var river_seat: ?*river.SeatV1 = null;
 
 pub fn main() !void {
@@ -108,7 +108,7 @@ fn windowManagerListener(
                 return;
             };
 
-            keybind.setupKeybinds(seat_event.id, xkb_bindings);
+            keybind.setupKeybinds(allocator, seat_event.id, xkb_bindings);
         },
         .window => |window_event| window.addWindow(allocator, window_event.id),
 

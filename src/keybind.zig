@@ -26,23 +26,37 @@ pub const Action = union(enum) {
     reload_config: void,
 };
 
-pub fn setupKeybinds(seat: *river.SeatV1, xkb_bindings: *river.XkbBindingsV1) void {
-    for (config.config.keybinds) |*keybind| {
-        const keysym = parseKey(keybind.key) orelse continue;
+var xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .{};
+
+pub fn setupKeybinds(
+    allocator: std.mem.Allocator,
+    seat: *river.SeatV1,
+    xkb_bindings: *river.XkbBindingsV1,
+) void {
+    for (xkb_binding_list.items) |item| item.destroy();
+    xkb_binding_list.clearRetainingCapacity();
+
+    for (config.config.keybinds) |*item| {
+        const keysym = parseKey(item.key) orelse continue;
 
         const xkb_binding = xkb_bindings.getXkbBinding(
             seat,
             keysym,
-            keybind.modifier,
+            item.modifier,
         ) catch |err| {
             std.debug.print("Failed to get xkb binding: {}\n", .{err});
             continue;
         };
 
+        xkb_binding_list.append(allocator, xkb_binding) catch |err| {
+            std.debug.print("Failed to add xkb binding: {}\n", .{err});
+            return;
+        };
+
         xkb_binding.setListener(
             ?*anyopaque,
             xkbBindingListener,
-            @ptrCast(@constCast(&keybind.action)),
+            @ptrCast(@constCast(&item.action)),
         );
         xkb_binding.enable();
     }
@@ -158,6 +172,11 @@ fn xkbBindingListener(
                 },
                 .reload_config => {
                     config.loadConfig(main.allocator);
+
+                    const seat = main.river_seat orelse return;
+                    const xkb_bindings = main.river_xkb_bindings orelse return;
+                    setupKeybinds(main.allocator, seat, xkb_bindings);
+
                     layout.applyLayout();
                 },
             }
