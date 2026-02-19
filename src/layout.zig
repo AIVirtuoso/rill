@@ -16,6 +16,15 @@ pub var workspace_list: [10]Workspace = undefined;
 pub var focused_workspace_index: usize = 0;
 
 pub fn applyLayout() void {
+    const edges = river.WindowV1.Edges{
+        .top = true,
+        .bottom = true,
+        .left = true,
+        .right = true,
+    };
+    const focused_color = config.config.border.focused_color.toRiverColor();
+    const unfocused_color = config.config.border.unfocused_color.toRiverColor();
+
     focused_window: {
         const workspace = workspace_list[focused_workspace_index];
         const window_index = workspace.focused_window_index orelse
@@ -29,6 +38,16 @@ pub fn applyLayout() void {
         seat.focusWindow(focused_window.river_window);
 
         focused_window.river_node.placeTop();
+
+        focused_window.river_window.setBorders(
+            edges,
+            config.config.border.width,
+            focused_color.r,
+            focused_color.g,
+            focused_color.b,
+            focused_color.a,
+        );
+
         if (focused_window.fullscreen_when_focused)
             focused_window.river_window.fullscreen(output.river_output);
     }
@@ -44,9 +63,9 @@ pub fn applyLayout() void {
         var x_finish = output.non_exclusive_x +
             @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
 
-        const workspace_distance = @as(i32, @intCast(i_workspace)) -
+        const workspace_offset = @as(i32, @intCast(i_workspace)) -
             @as(i32, @intCast(focused_workspace_index));
-        const y_finish = workspace_distance * output.height +
+        const y_finish = workspace_offset * output.height +
             output.non_exclusive_y + config.config.outer_gap;
 
         focused_window.animation_info.x_start = focused_window.x;
@@ -60,6 +79,14 @@ pub fn applyLayout() void {
             const window_item = &workspace_item.window_list.items[i_window];
 
             window_item.river_window.exitFullscreen();
+            window_item.river_window.setBorders(
+                edges,
+                config.config.border.width,
+                unfocused_color.r,
+                unfocused_color.g,
+                unfocused_color.b,
+                unfocused_color.a,
+            );
 
             width = window_item.animation_info.width_finish orelse window_item.width;
             x_finish -= config.config.inner_gap;
@@ -78,6 +105,14 @@ pub fn applyLayout() void {
 
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
             window_item.river_window.exitFullscreen();
+            window_item.river_window.setBorders(
+                edges,
+                config.config.border.width,
+                unfocused_color.r,
+                unfocused_color.g,
+                unfocused_color.b,
+                unfocused_color.a,
+            );
 
             window_item.animation_info.x_start = window_item.x;
             window_item.animation_info.x_finish = x_finish;

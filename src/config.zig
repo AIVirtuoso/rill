@@ -9,8 +9,35 @@ const Config = struct {
     outer_gap: i32,
     window_width_proportion: f32,
     animation_duration: u32,
+    border: struct { width: u8, focused_color: Color, unfocused_color: Color },
     spawn_at_startup: []const []const []const u8,
     keybinds: []keybind.Keybind,
+};
+
+const Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: f32,
+
+    pub fn toRiverColor(self: Color) struct { r: u32, g: u32, b: u32, a: u32 } {
+        var r: f32 = @floatFromInt(self.r);
+        var g: f32 = @floatFromInt(self.g);
+        var b: f32 = @floatFromInt(self.b);
+
+        r = self.a * r / 255;
+        g = self.a * g / 255;
+        b = self.a * b / 255;
+
+        const max_32bit: f64 = @floatFromInt(std.math.maxInt(u32));
+
+        return .{
+            .r = @intFromFloat(r * max_32bit),
+            .g = @intFromFloat(g * max_32bit),
+            .b = @intFromFloat(b * max_32bit),
+            .a = @intFromFloat(self.a * max_32bit),
+        };
+    }
 };
 
 pub fn loadConfig(allocator: std.mem.Allocator) void {
@@ -92,9 +119,14 @@ pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
 
 pub var config: Config = .{
     .inner_gap = 15,
-    .outer_gap = 15,
+    .outer_gap = 12,
     .window_width_proportion = 0.5,
     .animation_duration = 150,
+    .border = .{
+        .width = 3,
+        .focused_color = .{ .r = 141, .g = 214, .b = 0, .a = 1.0 },
+        .unfocused_color = .{ .r = 204, .g = 204, .b = 204, .a = 1.0 },
+    },
     .spawn_at_startup = &.{},
     .keybinds = &default_keybinds,
 };
