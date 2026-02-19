@@ -13,7 +13,6 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 ## Default key bindings
 | Binding | Action |
 |----------|--------|
-| `Super t` | Open alacritty |
 | `Super q` | Close window |
 | `Super h` | Focus to window on the left |
 | `Super l` | Focus to window on the right |
@@ -21,10 +20,19 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super Shift l` | Move window to the right |
 | `Super -` | Increase window's width by 10% |
 | `Super =` | Decrease window's width by 10% |
-| `Super Shift f` | Toggle fullscreen |
+| `Super f` | Toggle fullscreen |
 | `Super 1~0` | Focus to workspace 1~10 |
-| `Super Shift r` | Reload config |
+| `Super r` | Reload config |
+| `Super t` | Open alacritty |
+| `XF86AudioRaiseVolume` | Raise volume of pipewire default audio sink by 5% |
+| `XF86AudioLowerVolume` | Lower volume of pipewire default audio sink by 5% |
+| `XF86AudioMute` | Toggle mute for pipewire default audio sink |
+| `XF86AudioMicMute` | Toggle mute for pipewire default audio source |
 | `Ctrl Alt Delete` | Exit River |
+
+Key bindings for pipewire volume controls require `wpctl` to work.
+
+`Ctrl Alt Delete` is provided by River itself and always works.
 
 ## Dependencies
 * Zig 0.15

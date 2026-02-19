@@ -13,12 +13,38 @@
         // .{ "wl-clip-persist", "--clipboard", "both" },
     },
 
-    // modifiers: shift, ctrl, mod1 (alt), mod4 (super)
     .keybinds = .{
         .{
+            // Valid keys also include:
+            // "Left", "Up", "Right", "Down", "BackSpace", "Tab", "Return", "Escape", "Delete",
+            // "XF86MonBrightnessUp", "XF86MonBrightnessDown",
+            // "XF86AudioRaiseVolume", "XF86AudioLowerVolume", "XF86AudioMute", "XF86AudioMicMute"
             .key = "t",
+            // .key = "Return",
+            //
+            // modifiers: shift, ctrl, mod1 (alt), mod4 (super)
             .modifier = .{ .mod4 = true },
             .action = .{ .spawn = .{"alacritty"} },
+        },
+        .{
+            .key = "XF86AudioRaiseVolume",
+            .modifier = .{},
+            .action = .{ .spawn = .{ "wpctl", "set-volume", "--limit", "1.0", "@DEFAULT_AUDIO_SINK@", "0.05+" } },
+        },
+        .{
+            .key = "XF86AudioLowerVolume",
+            .modifier = .{},
+            .action = .{ .spawn = .{ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05-" } },
+        },
+        .{
+            .key = "XF86AudioMute",
+            .modifier = .{},
+            .action = .{ .spawn = .{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle" } },
+        },
+        .{
+            .key = "XF86AudioMicMute",
+            .modifier = .{},
+            .action = .{ .spawn = .{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle" } },
         },
 
         .{
@@ -46,23 +72,21 @@
             .modifier = .{ .mod4 = true, .shift = true },
             .action = .move_window_right,
         },
-
-        // Adjust the width of focused window, in percentage
         .{
             .key = "-",
             .modifier = .{ .mod4 = true },
-            // decrease by 10% of the screen's available width
+            // Decrease focused window's width by 10% of the screen's available width
             .action = .{ .adjust_window_width = -10 },
         },
         .{
             .key = "=",
             .modifier = .{ .mod4 = true },
-            // increase by 10% of the screen's available width
+            // Increase focused window's width by 10% of the screen's available width
             .action = .{ .adjust_window_width = 10 },
         },
         .{
             .key = "f",
-            .modifier = .{ .mod4 = true, .shift = true },
+            .modifier = .{ .mod4 = true },
             .action = .toggle_fullscreen,
         },
 
@@ -119,7 +143,7 @@
 
         .{
             .key = "r",
-            .modifier = .{ .mod4 = true, .shift = true },
+            .modifier = .{ .mod4 = true },
             .action = .reload_config,
         },
     },

@@ -105,6 +105,26 @@ var default_keybinds = [_]keybind.Keybind{
         .modifier = .{ .mod4 = true },
         .action = .{ .spawn = &[_][]const u8{"alacritty"} },
     },
+    .{
+        .key = "XF86AudioRaiseVolume",
+        .modifier = .{},
+        .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-volume", "--limit", "1.0", "@DEFAULT_AUDIO_SINK@", "0.05+" } },
+    },
+    .{
+        .key = "XF86AudioLowerVolume",
+        .modifier = .{},
+        .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05-" } },
+    },
+    .{
+        .key = "XF86AudioMute",
+        .modifier = .{},
+        .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle" } },
+    },
+    .{
+        .key = "XF86AudioMicMute",
+        .modifier = .{},
+        .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle" } },
+    },
 
     .{
         .key = "q",
@@ -143,7 +163,7 @@ var default_keybinds = [_]keybind.Keybind{
     },
     .{
         .key = "f",
-        .modifier = .{ .mod4 = true, .shift = true },
+        .modifier = .{ .mod4 = true },
         .action = .toggle_fullscreen,
     },
 
@@ -200,7 +220,7 @@ var default_keybinds = [_]keybind.Keybind{
 
     .{
         .key = "r",
-        .modifier = .{ .mod4 = true, .shift = true },
+        .modifier = .{ .mod4 = true },
         .action = .reload_config,
     },
 };
