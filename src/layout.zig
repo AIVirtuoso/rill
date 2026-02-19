@@ -17,10 +17,10 @@ pub var focused_workspace_index: usize = 0;
 
 pub fn applyLayout() void {
     focused_window: {
-        const focused_workspace = workspace_list[focused_workspace_index];
-        const focused_window_index = focused_workspace.focused_window_index orelse
+        const workspace = workspace_list[focused_workspace_index];
+        const window_index = workspace.focused_window_index orelse
             break :focused_window;
-        const focused_window = focused_workspace.window_list.items[focused_window_index];
+        const focused_window = workspace.window_list.items[window_index];
 
         const seat = main.river_seat orelse {
             std.debug.print("Failed to find a seat\n", .{});
@@ -32,17 +32,16 @@ pub fn applyLayout() void {
             focused_window.river_window.fullscreen(output.river_output);
     }
 
-    for (&workspace_list, 0..) |*workspace, i_workspace| {
-        const focused_window_index = workspace.focused_window_index orelse continue;
-        const focused_window = &workspace.window_list.items[focused_window_index];
+    for (&workspace_list, 0..) |*workspace_item, i_workspace| {
+        const focused_window_index = workspace_item.focused_window_index orelse continue;
+        const focused_window = &workspace_item.window_list.items[focused_window_index];
 
         if (i_workspace != focused_workspace_index)
             focused_window.river_window.exitFullscreen();
 
-        var width_finish =
-            focused_window.animation_info.width_finish orelse focused_window.width;
+        var width = focused_window.animation_info.width_finish orelse focused_window.width;
         var x_finish = output.non_exclusive_x +
-            @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width_finish, 2);
+            @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
 
         const workspace_distance = @as(i32, @intCast(i_workspace)) -
             @as(i32, @intCast(focused_workspace_index));
@@ -57,36 +56,35 @@ pub fn applyLayout() void {
         var i_window = focused_window_index;
         while (i_window > 0) {
             i_window -= 1;
-            const item = &workspace.window_list.items[i_window];
+            const window_item = &workspace_item.window_list.items[i_window];
 
-            item.river_window.exitFullscreen();
+            window_item.river_window.exitFullscreen();
 
-            width_finish = item.animation_info.width_finish orelse item.width;
+            width = window_item.animation_info.width_finish orelse window_item.width;
             x_finish -= config.config.inner_gap;
-            x_finish -= width_finish;
+            x_finish -= width;
 
-            item.animation_info.x_start = item.x;
-            item.animation_info.x_finish = x_finish;
-            item.animation_info.y_start = item.y;
-            item.animation_info.y_finish = y_finish;
+            window_item.animation_info.x_start = window_item.x;
+            window_item.animation_info.x_finish = x_finish;
+            window_item.animation_info.y_start = window_item.y;
+            window_item.animation_info.y_finish = y_finish;
         }
 
-        width_finish =
-            focused_window.animation_info.width_finish orelse focused_window.width;
+        width = focused_window.animation_info.width_finish orelse focused_window.width;
         x_finish = output.non_exclusive_x +
-            @divTrunc(output.non_exclusive_width, 2) + @divTrunc(width_finish, 2) +
+            @divTrunc(output.non_exclusive_width, 2) + @divTrunc(width, 2) +
             config.config.inner_gap;
 
-        for (workspace.window_list.items[focused_window_index + 1 ..]) |*item| {
-            item.river_window.exitFullscreen();
+        for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
+            window_item.river_window.exitFullscreen();
 
-            item.animation_info.x_start = item.x;
-            item.animation_info.x_finish = x_finish;
-            item.animation_info.y_start = item.y;
-            item.animation_info.y_finish = y_finish;
+            window_item.animation_info.x_start = window_item.x;
+            window_item.animation_info.x_finish = x_finish;
+            window_item.animation_info.y_start = window_item.y;
+            window_item.animation_info.y_finish = y_finish;
 
-            width_finish = item.animation_info.width_finish orelse item.width;
-            x_finish += width_finish;
+            width = window_item.animation_info.width_finish orelse window_item.width;
+            x_finish += width;
             x_finish += config.config.inner_gap;
         }
 

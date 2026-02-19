@@ -17,20 +17,19 @@ pub const Window = struct {
     animation_info: animation.AnimationInfo,
 };
 
-pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
-    const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
-    var window_index: usize = 0;
-    if (focused_workspace.focused_window_index) |focused_window_index|
-        window_index = focused_window_index + 1;
+pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
+    const workspace = &layout.workspace_list[layout.focused_workspace_index];
 
-    const node = window.getNode() catch |err| {
+    var window_index: usize = 0;
+    if (workspace.focused_window_index) |index|
+        window_index = index + 1;
+
+    const river_node = river_window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
         return;
     };
-
     const width = @as(f32, @floatFromInt(layout.output.non_exclusive_width)) *
         config.config.window_width_proportion;
-
     const animation_info = animation.AnimationInfo{
         .width_start = null,
         .width_finish = null,
@@ -39,22 +38,23 @@ pub fn addWindow(allocator: std.mem.Allocator, window: *river.WindowV1) void {
         .x_finish = null,
         .y_finish = null,
     };
-
-    focused_workspace.window_list.insert(allocator, window_index, .{
-        .river_window = window,
-        .river_node = node,
+    const window = Window{
+        .river_window = river_window,
+        .river_node = river_node,
         .width = @intFromFloat(width),
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.outer_gap,
         .fullscreen_when_focused = false,
         .animation_info = animation_info,
-    }) catch |err| {
+    };
+
+    workspace.window_list.insert(allocator, window_index, window) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
-    focused_workspace.focused_window_index = window_index;
+    workspace.focused_window_index = window_index;
 
-    window.setListener(?*anyopaque, windowListener, null);
+    river_window.setListener(?*anyopaque, windowListener, null);
     layout.applyLayout();
 }
 
@@ -65,33 +65,33 @@ fn windowListener(
 ) void {
     _ = data;
 
-    for (&layout.workspace_list) |*workspace| {
-        const focused_window_index = workspace.focused_window_index orelse continue;
+    for (&layout.workspace_list) |*workspace_item| {
+        const window_index = workspace_item.focused_window_index orelse continue;
 
-        for (workspace.window_list.items, 0..) |*window, i| {
-            if (window.river_window != river_window) continue;
+        for (workspace_item.window_list.items, 0..) |*window_item, i| {
+            if (window_item.river_window != river_window) continue;
 
             switch (event) {
                 .closed => {
-                    if (i == workspace.focused_window_index) {
-                        if (workspace.window_list.items.len == 1) {
-                            workspace.focused_window_index = null;
+                    if (i == workspace_item.focused_window_index) {
+                        if (workspace_item.window_list.items.len == 1) {
+                            workspace_item.focused_window_index = null;
                         } else if (i != 0) {
-                            workspace.focused_window_index = focused_window_index - 1;
+                            workspace_item.focused_window_index = window_index - 1;
                         }
                     }
 
-                    _ = workspace.window_list.orderedRemove(i);
+                    _ = workspace_item.window_list.orderedRemove(i);
                     river_window.destroy();
                     layout.applyLayout();
                 },
                 .fullscreen_requested => {
-                    window.fullscreen_when_focused = true;
+                    window_item.fullscreen_when_focused = true;
                     river_window.informFullscreen();
                     layout.applyLayout();
                 },
                 .exit_fullscreen_requested => {
-                    window.fullscreen_when_focused = false;
+                    window_item.fullscreen_when_focused = false;
                     river_window.informNotFullscreen();
                     river_window.exitFullscreen();
                 },

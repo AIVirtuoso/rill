@@ -23,6 +23,7 @@ pub const Action = union(enum) {
     adjust_window_width: i32,
     toggle_fullscreen: void,
     focus_workspace: usize,
+    move_window_to_workspace: usize,
     reload_config: void,
 };
 
@@ -98,7 +99,7 @@ fn xkbBindingListener(
     const action: *Action = @ptrCast(@alignCast(data.?));
     switch (event) {
         .pressed => {
-            const focused_workspace = &layout.workspace_list[layout.focused_workspace_index];
+            const workspace = &layout.workspace_list[layout.focused_workspace_index];
 
             switch (action.*) {
                 .spawn => |command| {
@@ -108,64 +109,55 @@ fn xkbBindingListener(
                     };
                 },
                 .close_window => {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    const focused_window =
-                        focused_workspace.window_list.items[focused_window_index];
+                    const window_index = workspace.focused_window_index orelse return;
+                    const focused_window = workspace.window_list.items[window_index];
 
                     focused_window.river_window.close();
                 },
                 .focus_window_left => {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    if (focused_window_index == 0) return;
+                    const window_index = workspace.focused_window_index orelse return;
+                    if (window_index == 0) return;
 
-                    focused_workspace.focused_window_index = focused_window_index - 1;
+                    workspace.focused_window_index = window_index - 1;
                     layout.applyLayout();
                 },
                 .focus_window_right => {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    if (focused_window_index == focused_workspace.window_list.items.len - 1)
+                    const window_index = workspace.focused_window_index orelse return;
+                    if (window_index == workspace.window_list.items.len - 1)
                         return;
 
-                    focused_workspace.focused_window_index = focused_window_index + 1;
+                    workspace.focused_window_index = window_index + 1;
                     layout.applyLayout();
                 },
                 .move_window_left => {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    if (focused_window_index == 0) return;
+                    const window_index = workspace.focused_window_index orelse return;
+                    if (window_index == 0) return;
 
                     std.mem.swap(
                         window.Window,
-                        &focused_workspace.window_list.items[focused_window_index],
-                        &focused_workspace.window_list.items[focused_window_index - 1],
+                        &workspace.window_list.items[window_index],
+                        &workspace.window_list.items[window_index - 1],
                     );
-                    focused_workspace.focused_window_index = focused_window_index - 1;
+                    workspace.focused_window_index = window_index - 1;
 
                     layout.applyLayout();
                 },
                 .move_window_right => {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    if (focused_window_index == focused_workspace.window_list.items.len - 1)
-                        return;
+                    const window_index = workspace.focused_window_index orelse return;
+                    if (window_index == workspace.window_list.items.len - 1) return;
 
                     std.mem.swap(
                         window.Window,
-                        &focused_workspace.window_list.items[focused_window_index],
-                        &focused_workspace.window_list.items[focused_window_index + 1],
+                        &workspace.window_list.items[window_index],
+                        &workspace.window_list.items[window_index + 1],
                     );
-                    focused_workspace.focused_window_index = focused_window_index + 1;
+                    workspace.focused_window_index = window_index + 1;
 
                     layout.applyLayout();
                 },
                 .adjust_window_width => |percentage| {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    var focused_window =
-                        &focused_workspace.window_list.items[focused_window_index];
+                    const window_index = workspace.focused_window_index orelse return;
+                    var focused_window = &workspace.window_list.items[window_index];
                     if (focused_window.fullscreen_when_focused) return;
 
                     const width_finish = focused_window.width +
@@ -178,10 +170,8 @@ fn xkbBindingListener(
                     layout.applyLayout();
                 },
                 .toggle_fullscreen => {
-                    const focused_window_index =
-                        focused_workspace.focused_window_index orelse return;
-                    const focused_window =
-                        &focused_workspace.window_list.items[focused_window_index];
+                    const window_index = workspace.focused_window_index orelse return;
+                    const focused_window = &workspace.window_list.items[window_index];
 
                     if (!focused_window.fullscreen_when_focused) {
                         focused_window.fullscreen_when_focused = true;
@@ -195,6 +185,35 @@ fn xkbBindingListener(
                 },
                 .focus_workspace => |number| {
                     layout.focused_workspace_index = number - 1;
+                    layout.applyLayout();
+                },
+                .move_window_to_workspace => |number| {
+                    const window_index = workspace.focused_window_index orelse return;
+
+                    if (workspace.window_list.items.len == 1) {
+                        workspace.focused_window_index = null;
+                    } else if (window_index != 0) {
+                        workspace.focused_window_index = window_index - 1;
+                    }
+
+                    const moved_window = workspace.window_list.orderedRemove(window_index);
+
+                    const target_workspace = &layout.workspace_list[number - 1];
+                    var target_window_index: usize = 0;
+                    if (target_workspace.focused_window_index) |index|
+                        target_window_index = index + 1;
+
+                    target_workspace.window_list.insert(
+                        main.allocator,
+                        target_window_index,
+                        moved_window,
+                    ) catch |err| {
+                        std.debug.print("Failed to add window: {}\n", .{err});
+                        return;
+                    };
+                    target_workspace.focused_window_index = target_window_index;
+                    layout.focused_workspace_index = number - 1;
+
                     layout.applyLayout();
                 },
                 .reload_config => {

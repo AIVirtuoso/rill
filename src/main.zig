@@ -116,10 +116,10 @@ fn windowManagerListener(
             animation.animate();
             const height = layout.output.non_exclusive_height - 2 * config.config.outer_gap;
 
-            for (layout.workspace_list) |workspace| {
-                for (workspace.window_list.items) |item| {
-                    item.river_window.proposeDimensions(item.width, height);
-                    item.river_node.setPosition(item.x, item.y);
+            for (layout.workspace_list) |workspace_item| {
+                for (workspace_item.window_list.items) |window_item| {
+                    window_item.river_window.proposeDimensions(window_item.width, height);
+                    window_item.river_node.setPosition(window_item.x, window_item.y);
                 }
             }
 

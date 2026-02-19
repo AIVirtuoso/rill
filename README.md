@@ -22,6 +22,7 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super =` | Decrease window's width by 10% |
 | `Super f` | Toggle fullscreen |
 | `Super 1~0` | Focus to workspace 1~10 |
+| `Super Shift 1~0` | Move window to workspace 1~10 |
 | `Super r` | Reload config |
 | `Super t` | Open alacritty |
 | `XF86AudioRaiseVolume` | Raise volume of pipewire default audio sink by 5% |
