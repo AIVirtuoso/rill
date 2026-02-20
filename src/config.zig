@@ -8,6 +8,7 @@ const Config = struct {
     inner_gap: i32,
     outer_gap: i32,
     window_width_proportion: f32,
+    no_csd: bool,
     animation_duration: u32,
     border: struct { width: u8, focused_color: Color, unfocused_color: Color },
     spawn_at_startup: []const []const []const u8,
@@ -121,6 +122,7 @@ pub var config: Config = .{
     .inner_gap = 15,
     .outer_gap = 12,
     .window_width_proportion = 0.5,
+    .no_csd = true,
     .animation_duration = 150,
     .border = .{
         .width = 3,

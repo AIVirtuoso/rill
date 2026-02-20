@@ -38,7 +38,6 @@ pub fn applyLayout() void {
         seat.focusWindow(focused_window.river_window);
 
         focused_window.river_node.placeTop();
-
         focused_window.river_window.setBorders(
             edges,
             config.config.border.width,
@@ -58,6 +57,7 @@ pub fn applyLayout() void {
 
         if (i_workspace != focused_workspace_index)
             focused_window.river_window.exitFullscreen();
+        if (config.config.no_csd) focused_window.river_window.useSsd();
 
         var width = focused_window.animation_info.width_finish orelse focused_window.width;
         var x_finish = output.non_exclusive_x +
@@ -79,6 +79,7 @@ pub fn applyLayout() void {
             const window_item = &workspace_item.window_list.items[i_window];
 
             window_item.river_window.exitFullscreen();
+            if (config.config.no_csd) window_item.river_window.useSsd();
             window_item.river_window.setBorders(
                 edges,
                 config.config.border.width,
@@ -105,6 +106,7 @@ pub fn applyLayout() void {
 
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
             window_item.river_window.exitFullscreen();
+            if (config.config.no_csd) window_item.river_window.useSsd();
             window_item.river_window.setBorders(
                 edges,
                 config.config.border.width,

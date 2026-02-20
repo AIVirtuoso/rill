@@ -5,6 +5,8 @@
     .outer_gap = 12,
     // default proportion of the screen's available width that a window occupies when spawned
     .window_width_proportion = 0.5,
+    // not to use client side decorations
+    .no_csd = true,
     // duration of animations, in milliseconds
     .animation_duration = 150,
 
