@@ -160,12 +160,13 @@ fn xkbBindingListener(
                     var focused_window = &workspace.window_list.items[window_index];
                     if (focused_window.fullscreen_when_focused) return;
 
-                    const width_finish = focused_window.width +
-                        @divTrunc(layout.output.non_exclusive_width * percentage, 100);
-                    if (width_finish < 0) return;
+                    const gap = config.config.horizontal_gap;
+                    const width = focused_window.width +
+                        @divTrunc((layout.output.non_exclusive_width - gap) * percentage, 100);
+                    if (width < 2 * config.config.border.width) return;
 
                     focused_window.animation_info.width_start = focused_window.width;
-                    focused_window.animation_info.width_finish = width_finish;
+                    focused_window.animation_info.width_finish = width;
 
                     layout.applyLayout();
                 },

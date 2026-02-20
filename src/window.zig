@@ -28,8 +28,12 @@ pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) vo
         std.debug.print("Failed to get window's node: {}\n", .{err});
         return;
     };
-    const width = @as(f32, @floatFromInt(layout.output.non_exclusive_width)) *
-        config.config.window_width_proportion;
+
+    const gap = config.config.horizontal_gap;
+    const base_width: f32 = @floatFromInt(layout.output.non_exclusive_width - gap);
+    const width_with_gap: i32 =
+        @intFromFloat(base_width * config.config.window_width_proportion);
+
     const animation_info = animation.AnimationInfo{
         .width_start = null,
         .width_finish = null,
@@ -38,12 +42,13 @@ pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) vo
         .x_finish = null,
         .y_finish = null,
     };
+
     const window = Window{
         .river_window = river_window,
         .river_node = river_node,
-        .width = @intFromFloat(width),
+        .width = width_with_gap - gap,
         .x = layout.output.width,
-        .y = layout.output.non_exclusive_y + config.config.outer_gap,
+        .y = layout.output.non_exclusive_y + config.config.vertical_gap,
         .fullscreen_when_focused = false,
         .animation_info = animation_info,
     };

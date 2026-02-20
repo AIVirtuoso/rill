@@ -111,15 +111,21 @@ fn windowManagerListener(
             keybind.setupKeybinds(allocator, seat_event.id, xkb_bindings);
         },
         .window => |window_event| window.addWindow(allocator, window_event.id),
-
         .manage_start => {
             animation.animate();
-            const height = layout.output.non_exclusive_height - 2 * config.config.outer_gap;
+            const border_width = config.config.border.width;
+            const height = layout.output.non_exclusive_height - 2 * config.config.vertical_gap;
 
             for (layout.workspace_list) |workspace_item| {
                 for (workspace_item.window_list.items) |window_item| {
-                    window_item.river_window.proposeDimensions(window_item.width, height);
-                    window_item.river_node.setPosition(window_item.x, window_item.y);
+                    window_item.river_window.proposeDimensions(
+                        window_item.width - 2 * border_width,
+                        height - 2 * border_width,
+                    );
+                    window_item.river_node.setPosition(
+                        window_item.x + border_width,
+                        window_item.y + border_width,
+                    );
                 }
             }
 

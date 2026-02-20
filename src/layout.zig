@@ -59,19 +59,28 @@ pub fn applyLayout() void {
             focused_window.river_window.exitFullscreen();
         if (config.config.no_csd) focused_window.river_window.useSsd();
 
+        var x_focused = focused_window.x;
         var width = focused_window.animation_info.width_finish orelse focused_window.width;
-        var x_finish = output.non_exclusive_x +
-            @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
+        const gap = config.config.horizontal_gap;
+        if (config.config.center_focused_window) {
+            x_focused = output.non_exclusive_x +
+                @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
+        } else if (focused_window.x - gap < output.non_exclusive_x) {
+            x_focused = output.non_exclusive_x + gap;
+        } else if (focused_window.x + width + gap > output.width) {
+            x_focused = @max(output.width - gap - width, output.non_exclusive_x + gap);
+        }
 
+        var x = x_focused;
         const workspace_offset = @as(i32, @intCast(i_workspace)) -
             @as(i32, @intCast(focused_workspace_index));
-        const y_finish = workspace_offset * output.height +
-            output.non_exclusive_y + config.config.outer_gap;
+        const y = workspace_offset * output.height +
+            output.non_exclusive_y + config.config.vertical_gap;
 
         focused_window.animation_info.x_start = focused_window.x;
-        focused_window.animation_info.x_finish = x_finish;
+        focused_window.animation_info.x_finish = x;
         focused_window.animation_info.y_start = focused_window.y;
-        focused_window.animation_info.y_finish = y_finish;
+        focused_window.animation_info.y_finish = y;
 
         var i_window = focused_window_index;
         while (i_window > 0) {
@@ -90,19 +99,16 @@ pub fn applyLayout() void {
             );
 
             width = window_item.animation_info.width_finish orelse window_item.width;
-            x_finish -= config.config.inner_gap;
-            x_finish -= width;
+            x -= gap + width;
 
             window_item.animation_info.x_start = window_item.x;
-            window_item.animation_info.x_finish = x_finish;
+            window_item.animation_info.x_finish = x;
             window_item.animation_info.y_start = window_item.y;
-            window_item.animation_info.y_finish = y_finish;
+            window_item.animation_info.y_finish = y;
         }
 
         width = focused_window.animation_info.width_finish orelse focused_window.width;
-        x_finish = output.non_exclusive_x +
-            @divTrunc(output.non_exclusive_width, 2) + @divTrunc(width, 2) +
-            config.config.inner_gap;
+        x = x_focused + width + gap;
 
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
             window_item.river_window.exitFullscreen();
@@ -117,16 +123,41 @@ pub fn applyLayout() void {
             );
 
             window_item.animation_info.x_start = window_item.x;
-            window_item.animation_info.x_finish = x_finish;
+            window_item.animation_info.x_finish = x;
             window_item.animation_info.y_start = window_item.y;
-            window_item.animation_info.y_finish = y_finish;
+            window_item.animation_info.y_finish = y;
 
             width = window_item.animation_info.width_finish orelse window_item.width;
-            x_finish += width;
-            x_finish += config.config.inner_gap;
+            x += width + gap;
         }
+        if (!config.config.center_focused_window) snapToEdge(workspace_item);
+    }
+    animation.animation_start_time = std.time.milliTimestamp();
+}
 
-        animation.animation_start_time = std.time.milliTimestamp();
+fn snapToEdge(workspace: *Workspace) void {
+    const window_list = workspace.window_list.items;
+
+    var front_distance: ?i32 = null;
+    const x_front = window_list[0].animation_info.x_finish orelse return;
+    const x_origin = output.non_exclusive_x + config.config.horizontal_gap;
+    if (x_front > x_origin) front_distance = x_front - x_origin;
+
+    var tail_distance: ?i32 = null;
+    const window_tail = window_list[window_list.len - 1];
+    const x_tail = window_tail.animation_info.x_finish orelse return;
+    const x_end = output.width - config.config.horizontal_gap;
+    const width = window_tail.animation_info.width_finish orelse window_tail.width;
+    if (x_tail + width < x_end)
+        tail_distance = @min(x_end - x_tail - width, x_origin - x_front);
+
+    for (window_list) |*item| {
+        const x_finish = item.animation_info.x_finish orelse continue;
+        if (front_distance) |distance| {
+            item.animation_info.x_finish = x_finish - distance;
+        } else if (tail_distance) |distance| {
+            item.animation_info.x_finish = x_finish + distance;
+        }
     }
 }
 

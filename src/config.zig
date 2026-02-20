@@ -5,9 +5,10 @@ const river = wayland.client.river;
 const keybind = @import("keybind.zig");
 
 const Config = struct {
-    inner_gap: i32,
-    outer_gap: i32,
+    vertical_gap: i32,
+    horizontal_gap: i32,
     window_width_proportion: f32,
+    center_focused_window: bool,
     no_csd: bool,
     animation_duration: u32,
     border: struct { width: u8, focused_color: Color, unfocused_color: Color },
@@ -119,9 +120,10 @@ pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
 }
 
 pub var config: Config = .{
-    .inner_gap = 15,
-    .outer_gap = 12,
+    .vertical_gap = 9,
+    .horizontal_gap = 9,
     .window_width_proportion = 0.5,
+    .center_focused_window = false,
     .no_csd = true,
     .animation_duration = 150,
     .border = .{
