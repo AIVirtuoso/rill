@@ -10,6 +10,7 @@ const main = @import("main.zig");
 pub const Window = struct {
     river_window: *river.WindowV1,
     river_node: *river.NodeV1,
+    proportion: f32,
     width: i32,
     x: i32,
     y: i32,
@@ -46,6 +47,7 @@ pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) vo
     const window = Window{
         .river_window = river_window,
         .river_node = river_node,
+        .proportion = config.config.window_width_proportion,
         .width = width_with_gap - gap,
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.vertical_gap,

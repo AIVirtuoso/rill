@@ -190,12 +190,12 @@ var default_keybinds = [_]keybind.Keybind{
     .{
         .key = "-",
         .modifier = .{ .mod4 = true },
-        .action = .{ .adjust_window_width = -10 },
+        .action = .{ .adjust_window_width = -0.1 },
     },
     .{
         .key = "=",
         .modifier = .{ .mod4 = true },
-        .action = .{ .adjust_window_width = 10 },
+        .action = .{ .adjust_window_width = 0.1 },
     },
     .{
         .key = "f",

@@ -85,14 +85,14 @@
         .{
             .key = "-",
             .modifier = .{ .mod4 = true },
-            // Decrease focused window's width by 10% of the screen's available width
-            .action = .{ .adjust_window_width = -10 },
+            // Decrease focused window's width by 0.1 of the screen's available width
+            .action = .{ .adjust_window_width = -0.1 },
         },
         .{
             .key = "=",
             .modifier = .{ .mod4 = true },
-            // Increase focused window's width by 10% of the screen's available width
-            .action = .{ .adjust_window_width = 10 },
+            // Increase focused window's width by 0.1 of the screen's available width
+            .action = .{ .adjust_window_width = 0.1 },
         },
         .{
             .key = "f",

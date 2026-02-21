@@ -20,7 +20,7 @@ pub const Action = union(enum) {
     focus_window_right: void,
     move_window_left: void,
     move_window_right: void,
-    adjust_window_width: i32,
+    adjust_window_width: f32,
     toggle_fullscreen: void,
     focus_workspace: usize,
     move_window_to_workspace: usize,
@@ -155,18 +155,20 @@ fn xkbBindingListener(
 
                     layout.applyLayout();
                 },
-                .adjust_window_width => |percentage| {
+                .adjust_window_width => |increment| {
                     const window_index = workspace.focused_window_index orelse return;
                     var focused_window = &workspace.window_list.items[window_index];
                     if (focused_window.fullscreen_when_focused) return;
 
                     const gap = config.config.horizontal_gap;
-                    const width = focused_window.width +
-                        @divTrunc((layout.output.non_exclusive_width - gap) * percentage, 100);
-                    if (width < 2 * config.config.border.width) return;
+                    const base_width: f32 = @floatFromInt(layout.output.non_exclusive_width - gap);
+                    const width_with_gap: i32 =
+                        @intFromFloat(base_width * (focused_window.proportion + increment));
 
+                    if (width_with_gap - gap < 2 * config.config.border.width) return;
+                    focused_window.proportion += increment;
                     focused_window.animation_info.width_start = focused_window.width;
-                    focused_window.animation_info.width_finish = width;
+                    focused_window.animation_info.width_finish = width_with_gap - gap;
 
                     layout.applyLayout();
                 },
