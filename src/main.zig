@@ -13,11 +13,13 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub const allocator = gpa.allocator();
 
 var river_window_manager: ?*river.WindowManagerV1 = null;
+var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
 var river_layer_shell: ?*river.LayerShellV1 = null;
-pub var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
-pub var river_seat: ?*river.SeatV1 = null;
+var river_seat: ?*river.SeatV1 = null;
 
 pub fn main() !void {
+    defer _ = gpa.deinit();
+
     const display = try wl.Display.connect(null);
     defer display.disconnect();
 
@@ -28,17 +30,18 @@ pub fn main() !void {
     _ = display.roundtrip();
 
     const window_manager = river_window_manager orelse {
-        std.debug.print("Failed to find River window manager\n", .{});
+        std.debug.print("Failed to find window manager\n", .{});
         return;
     };
     window_manager.setListener(?*anyopaque, windowManagerListener, null);
 
-    for (&layout.workspace_list) |*item| {
-        item.* = layout.Workspace{
-            .window_list = std.ArrayList(window.Window){},
-            .focused_window_index = null,
-        };
-    }
+    defer keybind.xkb_binding_list.deinit(allocator);
+
+    for (&layout.workspace_list) |*item| item.* = layout.Workspace{
+        .window_list = std.ArrayList(window.Window){},
+        .focused_window_index = null,
+    };
+    defer for (&layout.workspace_list) |*item| item.window_list.deinit(allocator);
 
     config.loadConfig(allocator);
     config.spawnAtStartup(allocator);
@@ -50,17 +53,15 @@ pub fn main() !void {
             break;
         }
 
-        if (animation.animation_start_time) |_|
-            window_manager.manageDirty();
+        if (animation.start_time) |_| window_manager.manageDirty();
     }
 }
 
 fn registryListener(
     registry: *wl.Registry,
     event: wl.Registry.Event,
-    data: ?*anyopaque,
+    _: ?*anyopaque,
 ) void {
-    _ = data;
     switch (event) {
         .global => |global| {
             const interface_name = std.mem.span(global.interface);
@@ -79,38 +80,42 @@ fn registryListener(
 fn windowManagerListener(
     window_manager: *river.WindowManagerV1,
     event: river.WindowManagerV1.Event,
-    data: ?*anyopaque,
+    _: ?*anyopaque,
 ) void {
-    _ = data;
-
     switch (event) {
         .output => |output_event| {
-            layout.output.river_output = output_event.id;
             output_event.id.setListener(?*anyopaque, layout.outputListener, null);
-
-            const layer_shell = river_layer_shell orelse {
-                std.debug.print("Failed to find a layer shell\n", .{});
-                return;
-            };
-
-            const layer_shell_output = layer_shell.getOutput(output_event.id) catch {
-                std.debug.print("Failed to get layer shell output\n", .{});
-                return;
-            };
-
-            layer_shell_output.setListener(?*anyopaque, layout.layerShellOutputListener, null);
         },
         .seat => |seat_event| {
             river_seat = seat_event.id;
 
             const xkb_bindings = river_xkb_bindings orelse {
-                std.debug.print("Failed to find River xkb bindings\n", .{});
+                std.debug.print("Failed to find xkb bindings\n", .{});
                 return;
             };
+            keybind.setupKeybinds(allocator, xkb_bindings, seat_event.id);
 
-            keybind.setupKeybinds(allocator, seat_event.id, xkb_bindings);
+            const layer_shell = river_layer_shell orelse {
+                std.debug.print("Failed to find layer shell\n", .{});
+                return;
+            };
+            const layer_shell_output = layer_shell.getOutput(layout.output.river_output) catch {
+                std.debug.print("Failed to get layer shell output\n", .{});
+                return;
+            };
+            layer_shell_output.setListener(
+                *river.SeatV1,
+                layout.layerShellOutputListener,
+                seat_event.id,
+            );
         },
-        .window => |window_event| window.addWindow(allocator, window_event.id),
+        .window => |window_event| {
+            const seat = river_seat orelse {
+                std.debug.print("Failed to find seat\n", .{});
+                return;
+            };
+            window.addWindow(allocator, window_event.id, seat);
+        },
         .manage_start => {
             animation.animate();
             const border_width = config.config.border.width;

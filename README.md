@@ -10,8 +10,8 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 <video src="https://codeberg.org/lzj15/rill/raw/branch/main/assets/recording.mp4" controls>
 </video>
 
-## Default key bindings
-| Binding | Action |
+## Default keybinds
+| Keybind | Action |
 |----------|--------|
 | `Super q` | Close window |
 | `Super h` | Focus to window on the left |

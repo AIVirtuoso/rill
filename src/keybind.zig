@@ -4,7 +4,6 @@ const river = wayland.client.river;
 
 const config = @import("config.zig");
 const layout = @import("layout.zig");
-const main = @import("main.zig");
 const window = @import("window.zig");
 
 pub const Keybind = struct {
@@ -54,24 +53,29 @@ fn parseKey(key: []const u8) ?u32 {
     return null;
 }
 
-var xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .{};
+pub var xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .{};
+
+const Data = struct {
+    allocator: std.mem.Allocator,
+    xkb_bindings: *river.XkbBindingsV1,
+    seat: *river.SeatV1,
+};
+var data: Data = undefined;
 
 pub fn setupKeybinds(
     allocator: std.mem.Allocator,
-    seat: *river.SeatV1,
     xkb_bindings: *river.XkbBindingsV1,
+    seat: *river.SeatV1,
 ) void {
     for (xkb_binding_list.items) |item| item.destroy();
     xkb_binding_list.clearRetainingCapacity();
 
     for (config.config.keybinds) |*item| {
-        const keysym = parseKey(item.key) orelse continue;
-
-        const xkb_binding = xkb_bindings.getXkbBinding(
-            seat,
-            keysym,
-            item.modifier,
-        ) catch |err| {
+        const keysym = parseKey(item.key) orelse {
+            std.debug.print("Failed to parse key\n", .{});
+            continue;
+        };
+        const xkb_binding = xkb_bindings.getXkbBinding(seat, keysym, item.modifier) catch |err| {
             std.debug.print("Failed to get xkb binding: {}\n", .{err});
             continue;
         };
@@ -81,32 +85,31 @@ pub fn setupKeybinds(
             return;
         };
 
-        xkb_binding.setListener(
-            ?*anyopaque,
-            xkbBindingListener,
-            @ptrCast(@constCast(&item.action)),
-        );
+        xkb_binding.setListener(*Action, xkbBindingListener, @constCast(&item.action));
         xkb_binding.enable();
     }
+
+    data = .{
+        .allocator = allocator,
+        .xkb_bindings = xkb_bindings,
+        .seat = seat,
+    };
 }
 
 fn xkbBindingListener(
-    xkb_binding: *river.XkbBindingV1,
+    _: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
-    data: ?*anyopaque,
+    action: *Action,
 ) void {
-    _ = xkb_binding;
-    const action: *Action = @ptrCast(@alignCast(data.?));
     switch (event) {
         .pressed => {
             const workspace = &layout.workspace_list[layout.focused_workspace_index];
 
             switch (action.*) {
                 .spawn => |command| {
-                    var child = std.process.Child.init(command, main.allocator);
-                    child.spawn() catch |err| {
+                    var child = std.process.Child.init(command, data.allocator);
+                    child.spawn() catch |err|
                         std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
-                    };
                 },
                 .close_window => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -119,7 +122,7 @@ fn xkbBindingListener(
                     if (window_index == 0) return;
 
                     workspace.focused_window_index = window_index - 1;
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .focus_window_right => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -127,7 +130,7 @@ fn xkbBindingListener(
                         return;
 
                     workspace.focused_window_index = window_index + 1;
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .move_window_left => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -140,7 +143,7 @@ fn xkbBindingListener(
                     );
                     workspace.focused_window_index = window_index - 1;
 
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .move_window_right => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -153,7 +156,7 @@ fn xkbBindingListener(
                     );
                     workspace.focused_window_index = window_index + 1;
 
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .adjust_window_width => |increment| {
                     const window_index = workspace.focused_window_index orelse return;
@@ -167,10 +170,8 @@ fn xkbBindingListener(
 
                     if (width_with_gap - gap < 2 * config.config.border.width) return;
                     focused_window.proportion += increment;
-                    focused_window.animation_info.width_start = focused_window.width;
-                    focused_window.animation_info.width_finish = width_with_gap - gap;
 
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .toggle_fullscreen => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -188,7 +189,7 @@ fn xkbBindingListener(
                 },
                 .focus_workspace => |number| {
                     layout.focused_workspace_index = number - 1;
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .move_window_to_workspace => |number| {
                     const window_index = workspace.focused_window_index orelse return;
@@ -207,7 +208,7 @@ fn xkbBindingListener(
                         target_window_index = index + 1;
 
                     target_workspace.window_list.insert(
-                        main.allocator,
+                        data.allocator,
                         target_window_index,
                         moved_window,
                     ) catch |err| {
@@ -217,16 +218,12 @@ fn xkbBindingListener(
                     target_workspace.focused_window_index = target_window_index;
                     layout.focused_workspace_index = number - 1;
 
-                    layout.applyLayout();
+                    layout.applyLayout(data.seat);
                 },
                 .reload_config => {
-                    config.loadConfig(main.allocator);
-
-                    const seat = main.river_seat orelse return;
-                    const xkb_bindings = main.river_xkb_bindings orelse return;
-                    setupKeybinds(main.allocator, seat, xkb_bindings);
-
-                    layout.applyLayout();
+                    config.loadConfig(data.allocator);
+                    setupKeybinds(data.allocator, data.xkb_bindings, data.seat);
+                    layout.applyLayout(data.seat);
                 },
             }
         },

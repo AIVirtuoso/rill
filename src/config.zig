@@ -113,9 +113,8 @@ fn readConfig(allocator: std.mem.Allocator) ?[:0]u8 {
 pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
     for (config.spawn_at_startup) |command| {
         var child = std.process.Child.init(command, allocator);
-        child.spawn() catch |err| {
+        child.spawn() catch |err|
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
-        };
     }
 }
 

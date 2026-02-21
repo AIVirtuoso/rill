@@ -5,7 +5,6 @@ const river = wayland.client.river;
 const animation = @import("animation.zig");
 const config = @import("config.zig");
 const layout = @import("layout.zig");
-const main = @import("main.zig");
 
 pub const Window = struct {
     river_window: *river.WindowV1,
@@ -15,10 +14,14 @@ pub const Window = struct {
     x: i32,
     y: i32,
     fullscreen_when_focused: bool,
-    animation_info: animation.AnimationInfo,
+    animation_info: ?animation.AnimationInfo,
 };
 
-pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
+pub fn addWindow(
+    allocator: std.mem.Allocator,
+    river_window: *river.WindowV1,
+    seat: *river.SeatV1,
+) void {
     const workspace = &layout.workspace_list[layout.focused_workspace_index];
 
     var window_index: usize = 0;
@@ -35,15 +38,6 @@ pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) vo
     const width_with_gap: i32 =
         @intFromFloat(base_width * config.config.window_width_proportion);
 
-    const animation_info = animation.AnimationInfo{
-        .width_start = null,
-        .width_finish = null,
-        .x_start = null,
-        .y_start = null,
-        .x_finish = null,
-        .y_finish = null,
-    };
-
     const window = Window{
         .river_window = river_window,
         .river_node = river_node,
@@ -52,7 +46,7 @@ pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) vo
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.vertical_gap,
         .fullscreen_when_focused = false,
-        .animation_info = animation_info,
+        .animation_info = null,
     };
 
     workspace.window_list.insert(allocator, window_index, window) catch |err| {
@@ -61,17 +55,15 @@ pub fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) vo
     };
     workspace.focused_window_index = window_index;
 
-    river_window.setListener(?*anyopaque, windowListener, null);
-    layout.applyLayout();
+    river_window.setListener(*river.SeatV1, windowListener, seat);
+    layout.applyLayout(seat);
 }
 
 fn windowListener(
     river_window: *river.WindowV1,
     event: river.WindowV1.Event,
-    data: ?*anyopaque,
+    seat: *river.SeatV1,
 ) void {
-    _ = data;
-
     for (&layout.workspace_list) |*workspace_item| {
         const window_index = workspace_item.focused_window_index orelse continue;
 
@@ -90,12 +82,12 @@ fn windowListener(
 
                     _ = workspace_item.window_list.orderedRemove(i);
                     river_window.destroy();
-                    layout.applyLayout();
+                    layout.applyLayout(seat);
                 },
                 .fullscreen_requested => {
                     window_item.fullscreen_when_focused = true;
                     river_window.informFullscreen();
-                    layout.applyLayout();
+                    layout.applyLayout(seat);
                 },
                 .exit_fullscreen_requested => {
                     window_item.fullscreen_when_focused = false;
