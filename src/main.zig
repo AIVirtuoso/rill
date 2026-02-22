@@ -49,7 +49,7 @@ pub fn main() !void {
     while (true) {
         const status = display.dispatch();
         if (@intFromEnum(status) != 0) {
-            std.debug.print("Wayland loop stopped with status: {}\n", .{status});
+            std.debug.print("Program stopped with status: {}\n", .{status});
             break;
         }
 
@@ -118,22 +118,6 @@ fn windowManagerListener(
         },
         .manage_start => {
             animation.animate();
-            const border_width = config.config.border.width;
-            const height = layout.output.non_exclusive_height - 2 * config.config.vertical_gap;
-
-            for (layout.workspace_list) |workspace_item| {
-                for (workspace_item.window_list.items) |window_item| {
-                    window_item.river_window.proposeDimensions(
-                        window_item.width - 2 * border_width,
-                        height - 2 * border_width,
-                    );
-                    window_item.river_node.setPosition(
-                        window_item.x + border_width,
-                        window_item.y + border_width,
-                    );
-                }
-            }
-
             window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),

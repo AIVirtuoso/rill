@@ -161,7 +161,7 @@ fn xkbBindingListener(
                 .adjust_window_width => |increment| {
                     const window_index = workspace.focused_window_index orelse return;
                     var focused_window = &workspace.window_list.items[window_index];
-                    if (focused_window.fullscreen_when_focused) return;
+                    if (focused_window.fullscreen) return;
 
                     const gap = config.config.horizontal_gap;
                     const base_width: f32 = @floatFromInt(layout.output.non_exclusive_width - gap);
@@ -177,17 +177,18 @@ fn xkbBindingListener(
                     const window_index = workspace.focused_window_index orelse return;
                     const focused_window = &workspace.window_list.items[window_index];
 
-                    if (!focused_window.fullscreen_when_focused) {
-                        focused_window.fullscreen_when_focused = true;
-                        focused_window.river_window.informFullscreen();
-                        focused_window.river_window.fullscreen(layout.output.river_output);
-                    } else if (focused_window.fullscreen_when_focused) {
-                        focused_window.fullscreen_when_focused = false;
+                    if (focused_window.fullscreen) {
+                        focused_window.fullscreen = false;
                         focused_window.river_window.informNotFullscreen();
-                        focused_window.river_window.exitFullscreen();
+                    } else {
+                        focused_window.fullscreen = true;
+                        focused_window.river_window.informFullscreen();
                     }
+
+                    layout.applyLayout(data.seat);
                 },
                 .focus_workspace => |number| {
+                    if (layout.focused_workspace_index == number - 1) return;
                     layout.focused_workspace_index = number - 1;
                     layout.applyLayout(data.seat);
                 },

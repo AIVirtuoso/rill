@@ -24,118 +24,156 @@ pub fn applyLayout(seat: *river.SeatV1) void {
     const focused_color = config.config.border.focused_color.toRiverColor();
     const unfocused_color = config.config.border.unfocused_color.toRiverColor();
 
-    focused_window: {
-        const workspace = workspace_list[focused_workspace_index];
-        const window_index = workspace.focused_window_index orelse
-            break :focused_window;
-        const focused_window = workspace.window_list.items[window_index];
-
-        seat.focusWindow(focused_window.river_window);
-
-        focused_window.river_node.placeTop();
-        focused_window.river_window.setBorders(
-            edges,
-            config.config.border.width,
-            focused_color.r,
-            focused_color.g,
-            focused_color.b,
-            focused_color.a,
-        );
-
-        if (focused_window.fullscreen_when_focused)
-            focused_window.river_window.fullscreen(output.river_output);
-    }
-
-    for (&workspace_list, 0..) |*workspace_item, i_workspace| {
+    for (&workspace_list, 0..) |*workspace_item, workspace_idx| {
         const focused_window_index = workspace_item.focused_window_index orelse continue;
         const focused_window = &workspace_item.window_list.items[focused_window_index];
 
-        if (i_workspace != focused_workspace_index)
-            focused_window.river_window.exitFullscreen();
+        focused_window.river_window.exitFullscreen();
         if (config.config.no_csd) focused_window.river_window.useSsd();
+
+        if (workspace_idx == focused_workspace_index) {
+            seat.focusWindow(focused_window.river_window);
+
+            focused_window.river_node.placeTop();
+            focused_window.river_window.setBorders(
+                edges,
+                config.config.border.width,
+                focused_color.r,
+                focused_color.g,
+                focused_color.b,
+                focused_color.a,
+            );
+        }
 
         const gap = config.config.horizontal_gap;
         const base_width: f32 = @floatFromInt(output.non_exclusive_width - gap);
-        var width_with_gap: i32 = @intFromFloat(base_width * focused_window.proportion);
+        var width = @as(i32, @intFromFloat(base_width * focused_window.proportion)) - gap;
+        var height = output.non_exclusive_height - 2 * config.config.vertical_gap;
 
         var x = focused_window.x;
         if (config.config.center_focused_window) {
             x = output.non_exclusive_x +
-                @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width_with_gap - gap, 2);
+                @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
         } else if (focused_window.x - gap < output.non_exclusive_x) {
             x = output.non_exclusive_x + gap;
-        } else if (focused_window.x + width_with_gap > output.width) {
-            x = @max(output.width - width_with_gap, output.non_exclusive_x + gap);
+        } else if (focused_window.x + width + gap > output.width) {
+            x = @max(output.width - gap - width, output.non_exclusive_x + gap);
         }
 
-        const workspace_offset = @as(i32, @intCast(i_workspace)) -
+        const workspace_offset = @as(i32, @intCast(workspace_idx)) -
             @as(i32, @intCast(focused_workspace_index));
-        const y = workspace_offset * output.height +
+        var y = workspace_offset * output.height +
             output.non_exclusive_y + config.config.vertical_gap;
+
+        if (focused_window.fullscreen) {
+            width = output.width;
+            height = output.height;
+            x = 0;
+            y = workspace_offset * output.height;
+        }
 
         focused_window.animation_info = .{
             .width_start = focused_window.width,
+            .height_start = focused_window.height,
             .x_start = focused_window.x,
             .y_start = focused_window.y,
-            .width_finish = width_with_gap - gap,
+            .width_finish = width,
+            .height_finish = height,
             .x_finish = x,
             .y_finish = y,
         };
 
-        x += width_with_gap;
+        focused_window.width = width;
+        focused_window.height = height;
+        focused_window.x = x;
+        focused_window.y = y;
+
+        x += width + gap;
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
             window_item.river_window.exitFullscreen();
             if (config.config.no_csd) window_item.river_window.useSsd();
-            window_item.river_window.setBorders(
-                edges,
-                config.config.border.width,
-                unfocused_color.r,
-                unfocused_color.g,
-                unfocused_color.b,
-                unfocused_color.a,
-            );
 
-            width_with_gap = @intFromFloat(base_width * window_item.proportion);
+            if (window_item.fullscreen) {
+                width = output.width;
+                height = output.height;
+                y = workspace_offset * output.height;
+            } else {
+                window_item.river_window.setBorders(
+                    edges,
+                    config.config.border.width,
+                    unfocused_color.r,
+                    unfocused_color.g,
+                    unfocused_color.b,
+                    unfocused_color.a,
+                );
+
+                width = @as(i32, @intFromFloat(base_width * window_item.proportion)) - gap;
+                height = output.non_exclusive_height - 2 * config.config.vertical_gap;
+            }
+
             window_item.animation_info = .{
                 .width_start = window_item.width,
+                .height_start = window_item.height,
                 .x_start = window_item.x,
                 .y_start = window_item.y,
-                .width_finish = width_with_gap - gap,
+                .width_finish = width,
+                .height_finish = height,
                 .x_finish = x,
                 .y_finish = y,
             };
 
-            x += width_with_gap;
+            window_item.width = width;
+            window_item.height = height;
+            window_item.x = x;
+            window_item.y = y;
+
+            x += width + gap;
         }
 
         x = focused_window.animation_info.?.x_finish;
-        var i_window = focused_window_index;
-        while (i_window > 0) {
-            i_window -= 1;
-            const window_item = &workspace_item.window_list.items[i_window];
+        var window_idx = focused_window_index;
+        while (window_idx > 0) {
+            window_idx -= 1;
+            const window_item = &workspace_item.window_list.items[window_idx];
 
             window_item.river_window.exitFullscreen();
             if (config.config.no_csd) window_item.river_window.useSsd();
-            window_item.river_window.setBorders(
-                edges,
-                config.config.border.width,
-                unfocused_color.r,
-                unfocused_color.g,
-                unfocused_color.b,
-                unfocused_color.a,
-            );
 
-            width_with_gap = @intFromFloat(base_width * window_item.proportion);
-            x -= width_with_gap;
+            if (window_item.fullscreen) {
+                width = output.width;
+                height = output.height;
+                y = workspace_offset * output.height;
+            } else {
+                window_item.river_window.setBorders(
+                    edges,
+                    config.config.border.width,
+                    unfocused_color.r,
+                    unfocused_color.g,
+                    unfocused_color.b,
+                    unfocused_color.a,
+                );
+
+                width = @as(i32, @intFromFloat(base_width * window_item.proportion)) - gap;
+                height = output.non_exclusive_height - 2 * config.config.vertical_gap;
+            }
+
+            x -= gap + width;
 
             window_item.animation_info = .{
                 .width_start = window_item.width,
+                .height_start = window_item.height,
                 .x_start = window_item.x,
                 .y_start = window_item.y,
-                .width_finish = width_with_gap - gap,
+                .width_finish = width,
+                .height_finish = height,
                 .x_finish = x,
                 .y_finish = y,
             };
+
+            window_item.width = width;
+            window_item.height = height;
+            window_item.x = x;
+            window_item.y = y;
         }
 
         if (!config.config.center_focused_window) snapToEdge(workspace_item);
