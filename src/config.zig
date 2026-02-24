@@ -124,7 +124,7 @@ pub var config: Config = .{
     .window_width_proportion = 0.5,
     .center_focused_window = false,
     .no_csd = true,
-    .animation_duration = 150,
+    .animation_duration = 200,
     .border = .{
         .width = 3,
         .focused_color = .{ .r = 141, .g = 214, .b = 0, .a = 1.0 },

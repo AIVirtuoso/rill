@@ -18,8 +18,8 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super l` | Focus to window on the right |
 | `Super Shift h` | Move window to the left |
 | `Super Shift l` | Move window to the right |
-| `Super -` | Increase window's width by 10% |
-| `Super =` | Decrease window's width by 10% |
+| `Super -` | Decrease window's width by a proportion of 0.1 |
+| `Super =` | Increase window's width by a proportion of 0.1 |
 | `Super f` | Toggle fullscreen |
 | `Super 1~0` | Focus to workspace 1~10 |
 | `Super Shift 1~0` | Move window to workspace 1~10 |

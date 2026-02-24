@@ -15,7 +15,7 @@ pub const Window = struct {
     x: i32,
     y: i32,
     fullscreen: bool,
-    animation_info: ?animation.AnimationInfo,
+    target: ?animation.Target,
 };
 
 pub fn addWindow(
@@ -49,7 +49,7 @@ pub fn addWindow(
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.vertical_gap,
         .fullscreen = false,
-        .animation_info = null,
+        .target = null,
     };
 
     workspace.window_list.insert(allocator, window_index, window) catch |err| {

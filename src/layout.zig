@@ -33,16 +33,7 @@ pub fn applyLayout(seat: *river.SeatV1) void {
 
         if (workspace_idx == focused_workspace_index) {
             seat.focusWindow(focused_window.river_window);
-
             focused_window.river_node.placeTop();
-            focused_window.river_window.setBorders(
-                edges,
-                config.config.border.width,
-                focused_color.r,
-                focused_color.g,
-                focused_color.b,
-                focused_color.a,
-            );
         }
 
         const gap = config.config.horizontal_gap;
@@ -70,23 +61,23 @@ pub fn applyLayout(seat: *river.SeatV1) void {
             height = output.height;
             x = 0;
             y = workspace_offset * output.height;
+        } else {
+            focused_window.river_window.setBorders(
+                edges,
+                config.config.border.width,
+                focused_color.r,
+                focused_color.g,
+                focused_color.b,
+                focused_color.a,
+            );
         }
 
-        focused_window.animation_info = .{
-            .width_start = focused_window.width,
-            .height_start = focused_window.height,
-            .x_start = focused_window.x,
-            .y_start = focused_window.y,
-            .width_finish = width,
-            .height_finish = height,
-            .x_finish = x,
-            .y_finish = y,
+        focused_window.target = .{
+            .width = width,
+            .height = height,
+            .x = x,
+            .y = y,
         };
-
-        focused_window.width = width;
-        focused_window.height = height;
-        focused_window.x = x;
-        focused_window.y = y;
 
         x += width + gap;
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
@@ -111,26 +102,17 @@ pub fn applyLayout(seat: *river.SeatV1) void {
                 height = output.non_exclusive_height - 2 * config.config.vertical_gap;
             }
 
-            window_item.animation_info = .{
-                .width_start = window_item.width,
-                .height_start = window_item.height,
-                .x_start = window_item.x,
-                .y_start = window_item.y,
-                .width_finish = width,
-                .height_finish = height,
-                .x_finish = x,
-                .y_finish = y,
+            window_item.target = .{
+                .width = width,
+                .height = height,
+                .x = x,
+                .y = y,
             };
-
-            window_item.width = width;
-            window_item.height = height;
-            window_item.x = x;
-            window_item.y = y;
 
             x += width + gap;
         }
 
-        x = focused_window.animation_info.?.x_finish;
+        x = focused_window.target.?.x;
         var window_idx = focused_window_index;
         while (window_idx > 0) {
             window_idx -= 1;
@@ -159,21 +141,12 @@ pub fn applyLayout(seat: *river.SeatV1) void {
 
             x -= gap + width;
 
-            window_item.animation_info = .{
-                .width_start = window_item.width,
-                .height_start = window_item.height,
-                .x_start = window_item.x,
-                .y_start = window_item.y,
-                .width_finish = width,
-                .height_finish = height,
-                .x_finish = x,
-                .y_finish = y,
+            window_item.target = .{
+                .width = width,
+                .height = height,
+                .x = x,
+                .y = y,
             };
-
-            window_item.width = width;
-            window_item.height = height;
-            window_item.x = x;
-            window_item.y = y;
         }
 
         if (!config.config.center_focused_window) snapToEdge(workspace_item);
@@ -185,24 +158,24 @@ fn snapToEdge(workspace: *Workspace) void {
     const window_list = workspace.window_list.items;
 
     var front_distance: ?i32 = null;
-    const x_front = window_list[0].animation_info.?.x_finish;
+    const x_front = window_list[0].target.?.x;
     const x_origin = output.non_exclusive_x + config.config.horizontal_gap;
     if (x_front > x_origin) front_distance = x_front - x_origin;
 
     var tail_distance: ?i32 = null;
     const window_tail = window_list[window_list.len - 1];
-    const x_tail = window_tail.animation_info.?.x_finish;
+    const x_tail = window_tail.target.?.x;
     const x_end = output.width - config.config.horizontal_gap;
-    const width = window_tail.animation_info.?.width_finish;
+    const width = window_tail.target.?.width;
     if (x_tail + width < x_end)
         tail_distance = @min(x_end - x_tail - width, x_origin - x_front);
 
     for (window_list) |*item| {
-        const x_finish = &item.animation_info.?.x_finish;
+        const x = &item.target.?.x;
         if (front_distance) |distance| {
-            x_finish.* -= distance;
+            x.* -= distance;
         } else if (tail_distance) |distance| {
-            x_finish.* += distance;
+            x.* += distance;
         }
     }
 }
