@@ -10,7 +10,7 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 <video src="https://codeberg.org/lzj15/rill/raw/branch/main/assets/recording.mp4" controls>
 </video>
 
-## Default keybinds
+## Default Keybinds
 | Keybind | Action |
 |----------|--------|
 | `Super q` | Close window |
@@ -25,27 +25,27 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super Shift 1~0` | Move window to workspace 1~10 |
 | `Super r` | Reload config |
 | `Super t` | Open alacritty |
-| `XF86AudioRaiseVolume` | Raise volume of pipewire default audio sink by 5% |
-| `XF86AudioLowerVolume` | Lower volume of pipewire default audio sink by 5% |
-| `XF86AudioMute` | Toggle mute for pipewire default audio sink |
-| `XF86AudioMicMute` | Toggle mute for pipewire default audio source |
+| `XF86AudioRaiseVolume` | Raise volume of PipeWire default audio sink by 5% |
+| `XF86AudioLowerVolume` | Lower volume of PipeWire default audio sink by 5% |
+| `XF86AudioMute` | Toggle mute for PipeWire default audio sink |
+| `XF86AudioMicMute` | Toggle mute for PipeWire default audio source |
 | `Ctrl Alt Delete` | Exit River |
 
-Key bindings for pipewire volume controls require `wpctl` to work.
+Keybinds for PipeWire require `wpctl` to work.
 
 `Ctrl Alt Delete` is provided by River itself and always works.
 
 ## Dependencies
-* Zig 0.15
-* River 0.4.x (supporting river-window-management-v1 protocol)
-* wayland-client
+* zig 0.15
+* river 0.4.x (supporting river-window-management-v1 protocol)
+* wayland
 * wayland-protocols
 
 ## Build
 ```bash
 git clone https://codeberg.org/lzj15/rill.git
 cd rill
-zig build -Doptimize=ReleaseSafe
+zig build --release=safe
 ```
 
 ## Usage

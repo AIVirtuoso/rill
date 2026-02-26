@@ -26,7 +26,6 @@ pub fn build(b: *std.Build) void {
             .imports = &.{
                 .{ .name = "wayland", .module = wayland_module },
             },
-            .link_libc = true,
         }),
     });
     exe.root_module.linkSystemLibrary("wayland-client", .{});

@@ -1,7 +1,7 @@
 .{
     .name = .rill,
     .version = "0.2.0",
-    .fingerprint = 0x2a384e7c4d9543f2,
+    .fingerprint = 0x2a384e7c7e6ebdf7,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .wayland = .{
@@ -14,5 +14,6 @@
         "build.zig.zon",
         "src",
         "protocol",
+        "LICENSE",
     },
 }
