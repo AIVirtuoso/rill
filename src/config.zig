@@ -128,7 +128,7 @@ pub var config: Config = .{
     .border = .{
         .width = 3,
         .focused_color = .{ .r = 141, .g = 214, .b = 0, .a = 1.0 },
-        .unfocused_color = .{ .r = 204, .g = 204, .b = 204, .a = 1.0 },
+        .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
     .spawn_at_startup = &.{},
     .keybinds = &default_keybinds,

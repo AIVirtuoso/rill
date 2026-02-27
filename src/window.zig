@@ -10,11 +10,11 @@ pub const Window = struct {
     river_window: *river.WindowV1,
     river_node: *river.NodeV1,
     proportion: f32,
+    fullscreen: bool,
     width: i32,
     height: i32,
     x: i32,
     y: i32,
-    fullscreen: bool,
     target: ?animation.Target,
 };
 
@@ -44,11 +44,11 @@ pub fn addWindow(
         .river_window = river_window,
         .river_node = river_node,
         .proportion = config.config.window_width_proportion,
+        .fullscreen = false,
         .width = width_with_gap - gap,
         .height = height,
         .x = layout.output.width,
         .y = layout.output.non_exclusive_y + config.config.vertical_gap,
-        .fullscreen = false,
         .target = null,
     };
 
@@ -68,19 +68,17 @@ fn windowListener(
     seat: *river.SeatV1,
 ) void {
     for (&layout.workspace_list) |*workspace_item| {
-        const window_index = workspace_item.focused_window_index orelse continue;
+        const focused_window_index = workspace_item.focused_window_index orelse continue;
 
         for (workspace_item.window_list.items, 0..) |*window_item, idx| {
             if (window_item.river_window != river_window) continue;
 
             switch (event) {
                 .closed => {
-                    if (idx == workspace_item.focused_window_index) {
-                        if (workspace_item.window_list.items.len == 1) {
-                            workspace_item.focused_window_index = null;
-                        } else if (idx != 0) {
-                            workspace_item.focused_window_index = window_index - 1;
-                        }
+                    if (workspace_item.window_list.items.len == 1) {
+                        workspace_item.focused_window_index = null;
+                    } else if (idx <= focused_window_index and focused_window_index != 0) {
+                        workspace_item.focused_window_index = focused_window_index - 1;
                     }
 
                     _ = workspace_item.window_list.orderedRemove(idx);
@@ -89,12 +87,10 @@ fn windowListener(
                 },
                 .fullscreen_requested => {
                     window_item.fullscreen = true;
-                    river_window.informFullscreen();
                     layout.applyLayout(seat);
                 },
                 .exit_fullscreen_requested => {
                     window_item.fullscreen = false;
-                    river_window.informNotFullscreen();
                     layout.applyLayout(seat);
                 },
                 else => {},

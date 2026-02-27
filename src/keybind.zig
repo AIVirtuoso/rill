@@ -177,14 +177,7 @@ fn xkbBindingListener(
                     const window_index = workspace.focused_window_index orelse return;
                     const focused_window = &workspace.window_list.items[window_index];
 
-                    if (focused_window.fullscreen) {
-                        focused_window.fullscreen = false;
-                        focused_window.river_window.informNotFullscreen();
-                    } else {
-                        focused_window.fullscreen = true;
-                        focused_window.river_window.informFullscreen();
-                    }
-
+                    focused_window.fullscreen = !focused_window.fullscreen;
                     layout.applyLayout(data.seat);
                 },
                 .focus_workspace => |number| {

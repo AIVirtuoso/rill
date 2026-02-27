@@ -57,11 +57,14 @@ pub fn animate() void {
                 );
 
                 if (window_item.fullscreen) {
+                    window_item.river_window.informFullscreen();
                     window_item.river_window.setBorders(.{}, 0, 0, 0, 0, 0);
 
                     if (workspace_idx == layout.focused_workspace_index and
                         window_idx == workspace_item.focused_window_index)
                         window_item.river_window.fullscreen(layout.output.river_output);
+                } else {
+                    window_item.river_window.informNotFullscreen();
                 }
 
                 window_item.width = target.width;
