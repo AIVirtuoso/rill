@@ -1,4 +1,6 @@
 const std = @import("std");
+const wayland = @import("wayland");
+const river = wayland.client.river;
 
 const config = @import("config.zig");
 const layout = @import("layout.zig");
@@ -11,7 +13,7 @@ pub const Target = struct {
 };
 pub var start_time: ?i64 = null;
 
-pub fn animate() void {
+pub fn apply(seat: *river.SeatV1) void {
     const start = start_time orelse return;
     const duration = config.config.animation_duration;
     if (std.time.milliTimestamp() - start >= duration) start_time = null;
@@ -38,6 +40,8 @@ pub fn animate() void {
             if (window_item.fullscreen) border_width = 0;
 
             if (std.time.milliTimestamp() - start < duration) {
+                window_item.river_window.exitFullscreen();
+
                 window_item.river_window.proposeDimensions(
                     window_item.width + width_progress - 2 * border_width,
                     window_item.height + height_progress - 2 * border_width,
@@ -56,6 +60,13 @@ pub fn animate() void {
                     target.y + border_width,
                 );
 
+                if (workspace_idx == layout.focused_workspace_index and
+                    window_idx == workspace_item.focused_window_index)
+                {
+                    seat.focusWindow(window_item.river_window);
+                    window_item.river_node.placeTop();
+                }
+
                 if (window_item.fullscreen) {
                     window_item.river_window.informFullscreen();
                     window_item.river_window.setBorders(.{}, 0, 0, 0, 0, 0);
@@ -71,7 +82,6 @@ pub fn animate() void {
                 window_item.height = target.height;
                 window_item.x = target.x;
                 window_item.y = target.y;
-
                 window_item.target = null;
             }
         }

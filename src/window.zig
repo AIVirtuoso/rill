@@ -18,16 +18,10 @@ pub const Window = struct {
     target: ?animation.Target,
 };
 
-pub fn addWindow(
-    allocator: std.mem.Allocator,
-    river_window: *river.WindowV1,
-    seat: *river.SeatV1,
-) void {
+pub fn add(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
     const workspace = &layout.workspace_list[layout.focused_workspace_index];
-
     var window_index: usize = 0;
-    if (workspace.focused_window_index) |index|
-        window_index = index + 1;
+    if (workspace.focused_window_index) |index| window_index = index + 1;
 
     const river_node = river_window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
@@ -58,14 +52,14 @@ pub fn addWindow(
     };
     workspace.focused_window_index = window_index;
 
-    river_window.setListener(*river.SeatV1, windowListener, seat);
-    layout.applyLayout(seat);
+    river_window.setListener(?*anyopaque, windowListener, null);
+    layout.apply();
 }
 
 fn windowListener(
     river_window: *river.WindowV1,
     event: river.WindowV1.Event,
-    seat: *river.SeatV1,
+    _: ?*anyopaque,
 ) void {
     for (&layout.workspace_list) |*workspace_item| {
         const focused_window_index = workspace_item.focused_window_index orelse continue;
@@ -83,15 +77,15 @@ fn windowListener(
 
                     _ = workspace_item.window_list.orderedRemove(idx);
                     river_window.destroy();
-                    layout.applyLayout(seat);
+                    layout.apply();
                 },
                 .fullscreen_requested => {
                     window_item.fullscreen = true;
-                    layout.applyLayout(seat);
+                    layout.apply();
                 },
                 .exit_fullscreen_requested => {
                     window_item.fullscreen = false;
-                    layout.applyLayout(seat);
+                    layout.apply();
                 },
                 else => {},
             }

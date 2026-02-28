@@ -85,6 +85,20 @@ fn windowManagerListener(
     switch (event) {
         .output => |output_event| {
             output_event.id.setListener(?*anyopaque, layout.outputListener, null);
+
+            const layer_shell = river_layer_shell orelse {
+                std.debug.print("Failed to find layer shell\n", .{});
+                return;
+            };
+            const layer_shell_output = layer_shell.getOutput(output_event.id) catch {
+                std.debug.print("Failed to get layer shell output\n", .{});
+                return;
+            };
+            layer_shell_output.setListener(
+                ?*anyopaque,
+                layout.layerShellOutputListener,
+                null,
+            );
         },
         .seat => |seat_event| {
             river_seat = seat_event.id;
@@ -94,30 +108,17 @@ fn windowManagerListener(
                 return;
             };
             keybind.setupKeybinds(allocator, xkb_bindings, seat_event.id);
-
-            const layer_shell = river_layer_shell orelse {
-                std.debug.print("Failed to find layer shell\n", .{});
-                return;
-            };
-            const layer_shell_output = layer_shell.getOutput(layout.output.river_output) catch {
-                std.debug.print("Failed to get layer shell output\n", .{});
-                return;
-            };
-            layer_shell_output.setListener(
-                *river.SeatV1,
-                layout.layerShellOutputListener,
-                seat_event.id,
-            );
         },
         .window => |window_event| {
+            window.add(allocator, window_event.id);
+            if (config.config.no_csd) window_event.id.useSsd();
+        },
+        .manage_start => {
             const seat = river_seat orelse {
                 std.debug.print("Failed to find seat\n", .{});
                 return;
             };
-            window.addWindow(allocator, window_event.id, seat);
-        },
-        .manage_start => {
-            animation.animate();
+            animation.apply(seat);
             window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),

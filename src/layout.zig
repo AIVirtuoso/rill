@@ -14,7 +14,7 @@ pub const Workspace = struct {
 pub var workspace_list: [10]Workspace = undefined;
 pub var focused_workspace_index: usize = 0;
 
-pub fn applyLayout(seat: *river.SeatV1) void {
+pub fn apply() void {
     const edges = river.WindowV1.Edges{
         .top = true,
         .bottom = true,
@@ -27,14 +27,6 @@ pub fn applyLayout(seat: *river.SeatV1) void {
     for (&workspace_list, 0..) |*workspace_item, workspace_idx| {
         const focused_window_index = workspace_item.focused_window_index orelse continue;
         const focused_window = &workspace_item.window_list.items[focused_window_index];
-
-        focused_window.river_window.exitFullscreen();
-        if (config.config.no_csd) focused_window.river_window.useSsd();
-
-        if (workspace_idx == focused_workspace_index) {
-            seat.focusWindow(focused_window.river_window);
-            focused_window.river_node.placeTop();
-        }
 
         const gap = config.config.horizontal_gap;
         const base_width: f32 = @floatFromInt(output.non_exclusive_width - gap);
@@ -81,9 +73,6 @@ pub fn applyLayout(seat: *river.SeatV1) void {
 
         x += width + gap;
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
-            window_item.river_window.exitFullscreen();
-            if (config.config.no_csd) window_item.river_window.useSsd();
-
             if (window_item.fullscreen) {
                 width = output.width;
                 height = output.height;
@@ -100,6 +89,8 @@ pub fn applyLayout(seat: *river.SeatV1) void {
 
                 width = @as(i32, @intFromFloat(base_width * window_item.proportion)) - gap;
                 height = output.non_exclusive_height - 2 * config.config.vertical_gap;
+                y = workspace_offset * output.height +
+                    output.non_exclusive_y + config.config.vertical_gap;
             }
 
             window_item.target = .{
@@ -108,7 +99,6 @@ pub fn applyLayout(seat: *river.SeatV1) void {
                 .x = x,
                 .y = y,
             };
-
             x += width + gap;
         }
 
@@ -118,9 +108,6 @@ pub fn applyLayout(seat: *river.SeatV1) void {
             window_idx -= 1;
             const window_item = &workspace_item.window_list.items[window_idx];
 
-            window_item.river_window.exitFullscreen();
-            if (config.config.no_csd) window_item.river_window.useSsd();
-
             if (window_item.fullscreen) {
                 width = output.width;
                 height = output.height;
@@ -137,10 +124,11 @@ pub fn applyLayout(seat: *river.SeatV1) void {
 
                 width = @as(i32, @intFromFloat(base_width * window_item.proportion)) - gap;
                 height = output.non_exclusive_height - 2 * config.config.vertical_gap;
+                y = workspace_offset * output.height +
+                    output.non_exclusive_y + config.config.vertical_gap;
             }
 
             x -= gap + width;
-
             window_item.target = .{
                 .width = width,
                 .height = height,
@@ -215,7 +203,7 @@ pub fn outputListener(
 pub fn layerShellOutputListener(
     _: *river.LayerShellOutputV1,
     event: river.LayerShellOutputV1.Event,
-    seat: *river.SeatV1,
+    _: ?*anyopaque,
 ) void {
     switch (event) {
         .non_exclusive_area => |non_exclusive_area| {
@@ -223,7 +211,7 @@ pub fn layerShellOutputListener(
             output.non_exclusive_height = non_exclusive_area.height;
             output.non_exclusive_x = non_exclusive_area.x;
             output.non_exclusive_y = non_exclusive_area.y;
-            applyLayout(seat);
+            apply();
         },
     }
 }

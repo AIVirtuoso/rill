@@ -114,23 +114,19 @@ fn xkbBindingListener(
                 .close_window => {
                     const window_index = workspace.focused_window_index orelse return;
                     const focused_window = workspace.window_list.items[window_index];
-
                     focused_window.river_window.close();
                 },
                 .focus_window_left => {
                     const window_index = workspace.focused_window_index orelse return;
                     if (window_index == 0) return;
-
                     workspace.focused_window_index = window_index - 1;
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .focus_window_right => {
                     const window_index = workspace.focused_window_index orelse return;
-                    if (window_index == workspace.window_list.items.len - 1)
-                        return;
-
+                    if (window_index == workspace.window_list.items.len - 1) return;
                     workspace.focused_window_index = window_index + 1;
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .move_window_left => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -143,7 +139,7 @@ fn xkbBindingListener(
                     );
                     workspace.focused_window_index = window_index - 1;
 
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .move_window_right => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -156,7 +152,7 @@ fn xkbBindingListener(
                     );
                     workspace.focused_window_index = window_index + 1;
 
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .adjust_window_width => |increment| {
                     const window_index = workspace.focused_window_index orelse return;
@@ -171,19 +167,18 @@ fn xkbBindingListener(
                     if (width_with_gap - gap < 2 * config.config.border.width) return;
                     focused_window.proportion += increment;
 
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .toggle_fullscreen => {
                     const window_index = workspace.focused_window_index orelse return;
                     const focused_window = &workspace.window_list.items[window_index];
-
                     focused_window.fullscreen = !focused_window.fullscreen;
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .focus_workspace => |number| {
                     if (layout.focused_workspace_index == number - 1) return;
                     layout.focused_workspace_index = number - 1;
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .move_window_to_workspace => |number| {
                     const window_index = workspace.focused_window_index orelse return;
@@ -212,12 +207,12 @@ fn xkbBindingListener(
                     target_workspace.focused_window_index = target_window_index;
                     layout.focused_workspace_index = number - 1;
 
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
                 .reload_config => {
                     config.loadConfig(data.allocator);
                     setupKeybinds(data.allocator, data.xkb_bindings, data.seat);
-                    layout.applyLayout(data.seat);
+                    layout.apply();
                 },
             }
         },
