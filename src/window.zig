@@ -20,7 +20,7 @@ pub const Window = struct {
 
 pub var pending: ?*river.WindowV1 = null;
 
-fn add(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
+fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
     const river_node = river_window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
         return;
@@ -63,7 +63,7 @@ pub fn windowListener(
     allocator: *std.mem.Allocator,
 ) void {
     if (event == .dimensions and river_window == pending) {
-        add(allocator.*, pending.?);
+        addWindow(allocator.*, pending.?);
         pending = null;
         return;
     }

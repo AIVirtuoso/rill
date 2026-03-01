@@ -8,7 +8,7 @@ const window = @import("window.zig");
 
 pub const Keybind = struct {
     key: []const u8,
-    modifier: river.SeatV1.Modifiers,
+    modifiers: river.SeatV1.Modifiers,
     action: Action,
 };
 
@@ -54,13 +54,11 @@ fn parseKey(key: []const u8) ?u32 {
 }
 
 pub var xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .{};
-
-const Data = struct {
+var data: struct {
     allocator: std.mem.Allocator,
     xkb_bindings: *river.XkbBindingsV1,
     seat: *river.SeatV1,
-};
-var data: Data = undefined;
+} = undefined;
 
 pub fn setupKeybinds(
     allocator: std.mem.Allocator,
@@ -75,7 +73,7 @@ pub fn setupKeybinds(
             std.debug.print("Failed to parse key\n", .{});
             continue;
         };
-        const xkb_binding = xkb_bindings.getXkbBinding(seat, keysym, item.modifier) catch |err| {
+        const xkb_binding = xkb_bindings.getXkbBinding(seat, keysym, item.modifiers) catch |err| {
             std.debug.print("Failed to get xkb binding: {}\n", .{err});
             continue;
         };
@@ -84,7 +82,6 @@ pub fn setupKeybinds(
             std.debug.print("Failed to add xkb binding: {}\n", .{err});
             return;
         };
-
         xkb_binding.setListener(*Action, xkbBindingListener, @constCast(&item.action));
         xkb_binding.enable();
     }
@@ -176,11 +173,14 @@ fn xkbBindingListener(
                     layout.apply();
                 },
                 .focus_workspace => |number| {
+                    if (number == 0 or number > 10) return;
                     if (layout.focused_workspace_index == number - 1) return;
                     layout.focused_workspace_index = number - 1;
                     layout.apply();
                 },
                 .move_window_to_workspace => |number| {
+                    if (number == 0 or number > 10) return;
+                    if (layout.focused_workspace_index == number - 1) return;
                     const window_index = workspace.focused_window_index orelse return;
 
                     if (workspace.window_list.items.len == 1) {
