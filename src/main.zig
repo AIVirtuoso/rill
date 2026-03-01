@@ -10,7 +10,7 @@ const layout = @import("layout.zig");
 const window = @import("window.zig");
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-pub const allocator = gpa.allocator();
+var allocator = gpa.allocator();
 
 var river_window_manager: ?*river.WindowManagerV1 = null;
 var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
@@ -110,7 +110,10 @@ fn windowManagerListener(
             keybind.setupKeybinds(allocator, xkb_bindings, seat_event.id);
         },
         .window => |window_event| {
-            window.add(allocator, window_event.id);
+            window.pending = window_event.id;
+            window_event.id.setListener(*std.mem.Allocator, window.windowListener, &allocator);
+            window_event.id.hide();
+            window_event.id.proposeDimensions(0, 0);
             if (config.config.no_csd) window_event.id.useSsd();
         },
         .manage_start => {

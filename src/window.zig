@@ -18,26 +18,24 @@ pub const Window = struct {
     target: ?animation.Target,
 };
 
-pub fn add(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
-    const workspace = &layout.workspace_list[layout.focused_workspace_index];
-    var window_index: usize = 0;
-    if (workspace.focused_window_index) |index| window_index = index + 1;
+pub var pending: ?*river.WindowV1 = null;
 
+fn add(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
     const river_node = river_window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
         return;
     };
 
     const gap = config.config.horizontal_gap;
+    const proportion = config.config.window_width_proportion;
     const base_width: f32 = @floatFromInt(layout.output.non_exclusive_width - gap);
-    const width_with_gap: i32 =
-        @intFromFloat(base_width * config.config.window_width_proportion);
+    const width_with_gap: i32 = @intFromFloat(base_width * proportion);
     const height = layout.output.non_exclusive_height - 2 * config.config.vertical_gap;
 
     const window = Window{
         .river_window = river_window,
         .river_node = river_node,
-        .proportion = config.config.window_width_proportion,
+        .proportion = proportion,
         .fullscreen = false,
         .width = width_with_gap - gap,
         .height = height,
@@ -46,21 +44,30 @@ pub fn add(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
         .target = null,
     };
 
+    const workspace = &layout.workspace_list[layout.focused_workspace_index];
+    var window_index: usize = 0;
+    if (workspace.focused_window_index) |index| window_index = index + 1;
+
     workspace.window_list.insert(allocator, window_index, window) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
     workspace.focused_window_index = window_index;
 
-    river_window.setListener(?*anyopaque, windowListener, null);
     layout.apply();
 }
 
-fn windowListener(
+pub fn windowListener(
     river_window: *river.WindowV1,
     event: river.WindowV1.Event,
-    _: ?*anyopaque,
+    allocator: *std.mem.Allocator,
 ) void {
+    if (event == .dimensions and river_window == pending) {
+        add(allocator.*, pending.?);
+        pending = null;
+        return;
+    }
+
     for (&layout.workspace_list) |*workspace_item| {
         const focused_window_index = workspace_item.focused_window_index orelse continue;
 
@@ -89,7 +96,6 @@ fn windowListener(
                 },
                 else => {},
             }
-
             return;
         }
     }

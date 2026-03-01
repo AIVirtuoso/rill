@@ -40,6 +40,7 @@ pub fn apply(seat: *river.SeatV1) void {
             if (window_item.fullscreen) border_width = 0;
 
             if (std.time.milliTimestamp() - start < duration) {
+                window_item.river_window.show();
                 window_item.river_window.exitFullscreen();
 
                 window_item.river_window.proposeDimensions(
