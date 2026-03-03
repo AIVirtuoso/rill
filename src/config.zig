@@ -31,55 +31,32 @@ const Color = struct {
         g = self.a * g / 255;
         b = self.a * b / 255;
 
-        const max_32bit: f64 = @floatFromInt(std.math.maxInt(u32));
-
+        const max: f64 = @floatFromInt(std.math.maxInt(u32));
         return .{
-            .r = @intFromFloat(r * max_32bit),
-            .g = @intFromFloat(g * max_32bit),
-            .b = @intFromFloat(b * max_32bit),
-            .a = @intFromFloat(self.a * max_32bit),
+            .r = @intFromFloat(r * max),
+            .g = @intFromFloat(g * max),
+            .b = @intFromFloat(b * max),
+            .a = @intFromFloat(self.a * max),
         };
     }
 };
 
-pub fn loadConfig(allocator: std.mem.Allocator) void {
-    const file_content = readConfig(allocator) orelse {
-        std.debug.print("No config file loaded\n", .{});
-        return;
-    };
-
-    config = std.zon.parse.fromSlice(Config, allocator, file_content, null, .{}) catch |err| {
-        std.debug.print("Failed to parse config file: {}\n", .{err});
-        std.debug.print("No config file loaded\n", .{});
-        return;
-    };
-}
-
-fn readConfig(allocator: std.mem.Allocator) ?[:0]u8 {
+fn findConfig(allocator: std.mem.Allocator) ?[]u8 {
     xdg_config_home: {
         const xdg_config_home =
             std.process.getEnvVarOwned(allocator, "XDG_CONFIG_HOME") catch |err| {
                 std.debug.print("Failed to read $XDG_CONFIG_HOME: {}\n", .{err});
                 break :xdg_config_home;
             };
-        const config_path =
-            std.fs.path.join(allocator, &.{ xdg_config_home, "rill", "config.zon" }) catch |err| {
-                std.debug.print("Failed to join paths: {}\n", .{err});
-                break :xdg_config_home;
-            };
-        const file_content = std.fs.cwd().readFileAllocOptions(
-            allocator,
-            config_path,
-            1024 * 1024,
-            null,
-            std.mem.Alignment.@"1",
-            0,
-        ) catch |err| {
-            std.debug.print("Failed to read {s}: {}\n", .{ config_path, err });
+        const path = std.fs.path.join(allocator, &.{
+            xdg_config_home,
+            "rill",
+            "config.zon",
+        }) catch |err| {
+            std.debug.print("Failed to join paths: {}\n", .{err});
             break :xdg_config_home;
         };
-        std.debug.print("Loaded config file from {s}\n", .{config_path});
-        return file_content;
+        return path;
     }
 
     home: {
@@ -87,35 +64,42 @@ fn readConfig(allocator: std.mem.Allocator) ?[:0]u8 {
             std.debug.print("Failed to read $HOME: {}\n", .{err});
             break :home;
         };
-        const config_path =
-            std.fs.path.join(allocator, &.{ home, ".config", "rill", "config.zon" }) catch |err| {
-                std.debug.print("Failed to join paths: {}\n", .{err});
-                break :home;
-            };
-        const file_content = std.fs.cwd().readFileAllocOptions(
-            allocator,
-            config_path,
-            1024 * 1024,
-            null,
-            std.mem.Alignment.@"1",
-            0,
-        ) catch |err| {
-            std.debug.print("Failed to read {s}: {}\n", .{ config_path, err });
+        const path = std.fs.path.join(allocator, &.{
+            home,
+            ".config",
+            "rill",
+            "config.zon",
+        }) catch |err| {
+            std.debug.print("Failed to join paths: {}\n", .{err});
             break :home;
         };
-        std.debug.print("Loaded config file from {s}\n", .{config_path});
-        return file_content;
+        return path;
     }
 
+    std.debug.print("No config file found\n", .{});
     return null;
 }
 
-pub fn spawnAtStartup(allocator: std.mem.Allocator) void {
-    for (config.spawn_at_startup) |command| {
-        var child = std.process.Child.init(command, allocator);
-        child.spawn() catch |err|
-            std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
-    }
+pub fn loadConfig(allocator: std.mem.Allocator) void {
+    const path = findConfig(allocator) orelse return;
+
+    const content = std.fs.cwd().readFileAllocOptions(
+        allocator,
+        path,
+        1024 * 1024,
+        null,
+        std.mem.Alignment.@"1",
+        0,
+    ) catch |err| {
+        std.debug.print("Failed to read {s}: {}\n", .{ path, err });
+        return;
+    };
+
+    config = std.zon.parse.fromSlice(Config, allocator, content, null, .{}) catch |err| {
+        std.debug.print("Failed to parse {s}: {}\n", .{ path, err });
+        return;
+    };
+    std.debug.print("Loaded config file from {s}\n", .{path});
 }
 
 pub var config: Config = .{

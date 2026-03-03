@@ -44,7 +44,11 @@ pub fn main() !void {
     defer for (&layout.workspace_list) |*item| item.window_list.deinit(allocator);
 
     config.loadConfig(allocator);
-    config.spawnAtStartup(allocator);
+    for (config.config.spawn_at_startup) |command| {
+        var child = std.process.Child.init(command, allocator);
+        child.spawn() catch |err|
+            std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+    }
 
     while (true) {
         const status = display.dispatch();
