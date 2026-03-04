@@ -5,8 +5,12 @@
     .horizontal_gap = 9,
     // default proportion of the screen's available width that a window occupies when spawned
     .window_width_proportion = 0.5,
+
     // whether to keep the focused window centered
-    .center_focused_window = false,
+    // options: never, always, single
+    // Set it to "single" will center a window if it's the only window in workspace
+    .center_focused_window = .never,
+
     // whether to disable client side decoration
     .no_csd = true,
     // duration of animations, in milliseconds

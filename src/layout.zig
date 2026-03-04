@@ -33,8 +33,14 @@ pub fn apply() void {
         var width = @as(i32, @intFromFloat(base_width * focused_window.proportion)) - gap;
         var height = output.non_exclusive_height - 2 * config.config.vertical_gap;
 
+        const should_center = switch (config.config.center_focused_window) {
+            .never => false,
+            .always => true,
+            .single => workspace_item.window_list.items.len == 1,
+        };
+
         var x = focused_window.x;
-        if (config.config.center_focused_window) {
+        if (should_center) {
             x = output.non_exclusive_x +
                 @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
         } else if (focused_window.x - gap < output.non_exclusive_x) {
@@ -137,7 +143,7 @@ pub fn apply() void {
             };
         }
 
-        if (!config.config.center_focused_window) snapToEdge(workspace_item);
+        if (!should_center) snapToEdge(workspace_item);
     }
     animation.start_time = std.time.milliTimestamp();
 }

@@ -8,7 +8,7 @@ const Config = struct {
     vertical_gap: i32,
     horizontal_gap: i32,
     window_width_proportion: f32,
-    center_focused_window: bool,
+    center_focused_window: enum { never, always, single },
     no_csd: bool,
     animation_duration: u32,
     border: struct { width: u8, focused_color: Color, unfocused_color: Color },
@@ -106,7 +106,7 @@ pub var config: Config = .{
     .vertical_gap = 9,
     .horizontal_gap = 9,
     .window_width_proportion = 0.5,
-    .center_focused_window = false,
+    .center_focused_window = .never,
     .no_csd = true,
     .animation_duration = 200,
     .border = .{
