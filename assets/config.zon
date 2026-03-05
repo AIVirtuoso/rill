@@ -27,7 +27,7 @@
         // .{ "wl-clip-persist", "--clipboard", "both" },
     },
 
-    .keybinds = .{
+    .keybindings = .{
         .{
             // Valid keys also include:
             // "Left", "Up", "Right", "Down", "BackSpace", "Tab", "Return", "Escape", "Delete",
@@ -62,6 +62,12 @@
         },
 
         .{
+            .key = "r",
+            .modifiers = .{ .mod4 = true },
+            .action = .reload_config,
+        },
+
+        .{
             .key = "q",
             .modifiers = .{ .mod4 = true },
             .action = .close_window,
@@ -86,6 +92,7 @@
             .modifiers = .{ .mod4 = true, .shift = true },
             .action = .move_window_right,
         },
+
         .{
             .key = "-",
             .modifiers = .{ .mod4 = true },
@@ -207,9 +214,24 @@
         },
 
         .{
-            .key = "r",
+            .key = "Left",
             .modifiers = .{ .mod4 = true },
-            .action = .reload_config,
+            .action = .focus_output_left,
+        },
+        .{
+            .key = "Right",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_right,
+        },
+        .{
+            .key = "Up",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_up,
+        },
+        .{
+            .key = "Down",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_output_down,
         },
     },
 }

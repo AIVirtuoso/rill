@@ -1,12 +1,12 @@
 .{
     .name = .rill,
-    .version = "0.2.0",
+    .version = "0.3.0",
     .fingerprint = 0x2a384e7c66a58625,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .wayland = .{
             .url = "https://codeberg.org/ifreund/zig-wayland/archive/main.tar.gz",
-            .hash = "1220997e7559328728919efc4096c7e8d68ce51502f4e0d03e1c79a313992e22532a",
+            .hash = "wayland-0.5.0-dev-lQa1kv_ZAQCZfnVZMocokZ78QJbH6NaM5RUC9ODQPhx5",
         },
     },
     .paths = .{

@@ -6,7 +6,7 @@ const config = @import("config.zig");
 const layout = @import("layout.zig");
 const window = @import("window.zig");
 
-pub const Keybind = struct {
+pub const Keybinding = struct {
     key: []const u8,
     modifiers: river.SeatV1.Modifiers,
     action: Action,
@@ -14,6 +14,7 @@ pub const Keybind = struct {
 
 pub const Action = union(enum) {
     spawn: []const []const u8,
+    reload_config: void,
     close_window: void,
     focus_window_left: void,
     focus_window_right: void,
@@ -23,7 +24,10 @@ pub const Action = union(enum) {
     toggle_fullscreen: void,
     focus_workspace: usize,
     move_window_to_workspace: usize,
-    reload_config: void,
+    focus_output_left: void,
+    focus_output_right: void,
+    focus_output_up: void,
+    focus_output_down: void,
 };
 
 const SpecialKeyMap = std.StaticStringMap(u32).initComptime(.{
@@ -60,7 +64,7 @@ var data: struct {
     seat: *river.SeatV1,
 } = undefined;
 
-pub fn setupKeybinds(
+pub fn setup(
     allocator: std.mem.Allocator,
     xkb_bindings: *river.XkbBindingsV1,
     seat: *river.SeatV1,
@@ -68,7 +72,7 @@ pub fn setupKeybinds(
     for (xkb_binding_list.items) |item| item.destroy();
     xkb_binding_list.clearRetainingCapacity();
 
-    for (config.config.keybinds) |*item| {
+    for (config.config.keybindings) |*item| {
         const keysym = parseKey(item.key) orelse {
             std.debug.print("Failed to parse key\n", .{});
             continue;
@@ -100,13 +104,19 @@ fn xkbBindingListener(
 ) void {
     switch (event) {
         .pressed => {
-            const workspace = &layout.workspace_list[layout.focused_workspace_index];
+            const output = &layout.output_list.items[layout.focused_output_index];
+            const workspace = &output.workspace_list[output.focused_workspace_index];
 
             switch (action.*) {
                 .spawn => |command| {
                     var child = std.process.Child.init(command, data.allocator);
                     child.spawn() catch |err|
                         std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+                },
+                .reload_config => {
+                    config.loadConfig(data.allocator);
+                    setup(data.allocator, data.xkb_bindings, data.seat);
+                    layout.apply();
                 },
                 .close_window => {
                     const window_index = workspace.focused_window_index orelse return;
@@ -156,8 +166,9 @@ fn xkbBindingListener(
                     var focused_window = &workspace.window_list.items[window_index];
                     if (focused_window.fullscreen) return;
 
+                    const non_exclusive = output.non_exclusive orelse output.dimensions;
                     const gap = config.config.horizontal_gap;
-                    const base_width: f32 = @floatFromInt(layout.output.non_exclusive_width - gap);
+                    const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
                     const width_with_gap: i32 =
                         @intFromFloat(base_width * (focused_window.proportion + increment));
 
@@ -174,13 +185,13 @@ fn xkbBindingListener(
                 },
                 .focus_workspace => |number| {
                     if (number == 0 or number > 10) return;
-                    if (layout.focused_workspace_index == number - 1) return;
-                    layout.focused_workspace_index = number - 1;
+                    if (output.focused_workspace_index == number - 1) return;
+                    output.focused_workspace_index = number - 1;
                     layout.apply();
                 },
                 .move_window_to_workspace => |number| {
                     if (number == 0 or number > 10) return;
-                    if (layout.focused_workspace_index == number - 1) return;
+                    if (output.focused_workspace_index == number - 1) return;
                     const window_index = workspace.focused_window_index orelse return;
 
                     if (workspace.window_list.items.len == 1) {
@@ -191,7 +202,7 @@ fn xkbBindingListener(
 
                     const moved_window = workspace.window_list.orderedRemove(window_index);
 
-                    const target_workspace = &layout.workspace_list[number - 1];
+                    const target_workspace = &output.workspace_list[number - 1];
                     var target_window_index: usize = 0;
                     if (target_workspace.focused_window_index) |index|
                         target_window_index = index + 1;
@@ -205,13 +216,36 @@ fn xkbBindingListener(
                         return;
                     };
                     target_workspace.focused_window_index = target_window_index;
-                    layout.focused_workspace_index = number - 1;
+                    output.focused_workspace_index = number - 1;
 
                     layout.apply();
                 },
-                .reload_config => {
-                    config.loadConfig(data.allocator);
-                    setupKeybinds(data.allocator, data.xkb_bindings, data.seat);
+                .focus_output_left => {
+                    for (layout.output_list.items, 0..) |item, idx| {
+                        if (item.dimensions.x + item.dimensions.width == output.dimensions.x)
+                            layout.focused_output_index = idx;
+                    }
+                    layout.apply();
+                },
+                .focus_output_right => {
+                    for (layout.output_list.items, 0..) |item, idx| {
+                        if (item.dimensions.x == output.dimensions.x + output.dimensions.width)
+                            layout.focused_output_index = idx;
+                    }
+                    layout.apply();
+                },
+                .focus_output_up => {
+                    for (layout.output_list.items, 0..) |item, idx| {
+                        if (item.dimensions.y + item.dimensions.height == output.dimensions.y)
+                            layout.focused_output_index = idx;
+                    }
+                    layout.apply();
+                },
+                .focus_output_down => {
+                    for (layout.output_list.items, 0..) |item, idx| {
+                        if (item.dimensions.y == output.dimensions.y + output.dimensions.height)
+                            layout.focused_output_index = idx;
+                    }
                     layout.apply();
                 },
             }

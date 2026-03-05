@@ -5,7 +5,7 @@ const wl = wayland.client.wl;
 
 const animation = @import("animation.zig");
 const config = @import("config.zig");
-const keybind = @import("keybind.zig");
+const keybinding = @import("keybinding.zig");
 const layout = @import("layout.zig");
 const window = @import("window.zig");
 
@@ -25,8 +25,8 @@ pub fn main() !void {
 
     const registry = try display.getRegistry();
     defer registry.destroy();
-    registry.setListener(?*anyopaque, registryListener, null);
 
+    registry.setListener(?*anyopaque, registryListener, null);
     _ = display.roundtrip();
 
     const window_manager = river_window_manager orelse {
@@ -35,13 +35,11 @@ pub fn main() !void {
     };
     window_manager.setListener(?*anyopaque, windowManagerListener, null);
 
-    defer keybind.xkb_binding_list.deinit(allocator);
-
-    for (&layout.workspace_list) |*item| item.* = layout.Workspace{
-        .window_list = std.ArrayList(window.Window){},
-        .focused_window_index = null,
-    };
-    defer for (&layout.workspace_list) |*item| item.window_list.deinit(allocator);
+    defer layout.output_list.deinit(allocator);
+    defer for (layout.output_list.items) |*output|
+        for (&output.workspace_list) |*item| item.window_list.deinit(allocator);
+    defer keybinding.xkb_binding_list.deinit(allocator);
+    defer std.zon.parse.free(allocator, config.config);
 
     config.loadConfig(allocator);
     for (config.config.spawn_at_startup) |command| {
@@ -56,7 +54,6 @@ pub fn main() !void {
             std.debug.print("Program stopped with status: {}\n", .{status});
             break;
         }
-
         if (animation.start_time) |_| window_manager.manageDirty();
     }
 }
@@ -88,7 +85,22 @@ fn windowManagerListener(
 ) void {
     switch (event) {
         .output => |output_event| {
-            output_event.id.setListener(?*anyopaque, layout.outputListener, null);
+            const workspace_list = [_]layout.Workspace{.{
+                .window_list = std.ArrayList(window.Window){},
+                .focused_window_index = null,
+            }} ** 10;
+
+            layout.output_list.append(allocator, .{
+                .river_output = output_event.id,
+                .workspace_list = workspace_list,
+                .focused_workspace_index = 0,
+                .dimensions = undefined,
+                .non_exclusive = null,
+            }) catch |err| {
+                std.debug.print("Failed to add output: {}\n", .{err});
+                return;
+            };
+            output_event.id.setListener(?*anyopaque, outputListener, null);
 
             const layer_shell = river_layer_shell orelse {
                 std.debug.print("Failed to find layer shell\n", .{});
@@ -98,20 +110,20 @@ fn windowManagerListener(
                 std.debug.print("Failed to get layer shell output\n", .{});
                 return;
             };
+
             layer_shell_output.setListener(
-                ?*anyopaque,
-                layout.layerShellOutputListener,
-                null,
+                *river.OutputV1,
+                layerShellOutputListener,
+                output_event.id,
             );
         },
         .seat => |seat_event| {
             river_seat = seat_event.id;
-
             const xkb_bindings = river_xkb_bindings orelse {
                 std.debug.print("Failed to find xkb bindings\n", .{});
                 return;
             };
-            keybind.setupKeybinds(allocator, xkb_bindings, seat_event.id);
+            keybinding.setup(allocator, xkb_bindings, seat_event.id);
         },
         .window => |window_event| {
             window.pending = window_event.id;
@@ -129,6 +141,49 @@ fn windowManagerListener(
             window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),
+        .finished => window_manager.destroy(),
         else => {},
+    }
+}
+
+fn outputListener(
+    river_output: *river.OutputV1,
+    event: river.OutputV1.Event,
+    _: ?*anyopaque,
+) void {
+    for (layout.output_list.items) |*item| {
+        if (item.river_output != river_output) continue;
+        switch (event) {
+            .dimensions => |dimensions| {
+                item.dimensions.width = dimensions.width;
+                item.dimensions.height = dimensions.height;
+            },
+            .position => |position| {
+                item.dimensions.x = position.x;
+                item.dimensions.y = position.y;
+            },
+            else => {},
+        }
+    }
+}
+
+fn layerShellOutputListener(
+    _: *river.LayerShellOutputV1,
+    event: river.LayerShellOutputV1.Event,
+    river_output: *river.OutputV1,
+) void {
+    for (layout.output_list.items) |*item| {
+        if (item.river_output != river_output) continue;
+        switch (event) {
+            .non_exclusive_area => |area| {
+                item.non_exclusive = .{
+                    .width = area.width,
+                    .height = area.height,
+                    .x = area.x,
+                    .y = area.y,
+                };
+                layout.apply();
+            },
+        }
     }
 }

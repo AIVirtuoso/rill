@@ -6,13 +6,27 @@ const animation = @import("animation.zig");
 const config = @import("config.zig");
 const window = @import("window.zig");
 
+pub const Dimensions = struct {
+    width: i32,
+    height: i32,
+    x: i32,
+    y: i32,
+};
+
+pub const Output = struct {
+    river_output: *river.OutputV1,
+    workspace_list: [10]Workspace,
+    focused_workspace_index: usize,
+    dimensions: Dimensions,
+    non_exclusive: ?Dimensions,
+};
+pub var output_list = std.ArrayList(Output){};
+pub var focused_output_index: usize = 0;
+
 pub const Workspace = struct {
     window_list: std.ArrayList(window.Window),
     focused_window_index: ?usize,
 };
-
-pub var workspace_list: [10]Workspace = undefined;
-pub var focused_workspace_index: usize = 0;
 
 pub fn apply() void {
     const edges = river.WindowV1.Edges{
@@ -24,14 +38,21 @@ pub fn apply() void {
     const focused_color = config.config.border.focused_color.toRiverColor();
     const unfocused_color = config.config.border.unfocused_color.toRiverColor();
 
-    for (&workspace_list, 0..) |*workspace_item, workspace_idx| {
+    const output = &output_list.items[focused_output_index];
+    const non_exclusive = output.non_exclusive orelse output.dimensions;
+
+    const horizontal_gap = config.config.horizontal_gap;
+    const base_width: f32 = @floatFromInt(non_exclusive.width - horizontal_gap);
+
+    const vertical_gap = config.config.vertical_gap;
+    var height = non_exclusive.height - 2 * vertical_gap;
+
+    for (&output.workspace_list, 0..) |*workspace_item, workspace_idx| {
         const focused_window_index = workspace_item.focused_window_index orelse continue;
         const focused_window = &workspace_item.window_list.items[focused_window_index];
 
-        const gap = config.config.horizontal_gap;
-        const base_width: f32 = @floatFromInt(output.non_exclusive_width - gap);
-        var width = @as(i32, @intFromFloat(base_width * focused_window.proportion)) - gap;
-        var height = output.non_exclusive_height - 2 * config.config.vertical_gap;
+        var width_with_gap: i32 = @intFromFloat(base_width * focused_window.proportion);
+        var width = width_with_gap - horizontal_gap;
 
         const should_center = switch (config.config.center_focused_window) {
             .never => false,
@@ -41,24 +62,26 @@ pub fn apply() void {
 
         var x = focused_window.x;
         if (should_center) {
-            x = output.non_exclusive_x +
-                @divTrunc(output.non_exclusive_width, 2) - @divTrunc(width, 2);
-        } else if (focused_window.x - gap < output.non_exclusive_x) {
-            x = output.non_exclusive_x + gap;
-        } else if (focused_window.x + width + gap > output.width) {
-            x = @max(output.width - gap - width, output.non_exclusive_x + gap);
+            x = non_exclusive.x + @divTrunc(non_exclusive.width, 2) - @divTrunc(width, 2);
+        } else if (focused_window.x < non_exclusive.x + horizontal_gap) {
+            x = non_exclusive.x + horizontal_gap;
+        } else if (focused_window.x + width_with_gap > non_exclusive.x + non_exclusive.width) {
+            x = @max(
+                non_exclusive.x + non_exclusive.width - width_with_gap,
+                non_exclusive.x + horizontal_gap,
+            );
         }
 
         const workspace_offset = @as(i32, @intCast(workspace_idx)) -
-            @as(i32, @intCast(focused_workspace_index));
-        var y = workspace_offset * output.height +
-            output.non_exclusive_y + config.config.vertical_gap;
+            @as(i32, @intCast(output.focused_workspace_index));
+        const y_offset = workspace_offset * output.dimensions.height;
+        var y = non_exclusive.y + y_offset + vertical_gap;
 
         if (focused_window.fullscreen) {
-            width = output.width;
-            height = output.height;
-            x = 0;
-            y = workspace_offset * output.height;
+            width = output.dimensions.width;
+            height = output.dimensions.height;
+            x = output.dimensions.x;
+            y = output.dimensions.y + y_offset;
         } else {
             focused_window.river_window.setBorders(
                 edges,
@@ -77,12 +100,12 @@ pub fn apply() void {
             .y = y,
         };
 
-        x += width + gap;
+        x += width + horizontal_gap;
         for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
             if (window_item.fullscreen) {
-                width = output.width;
-                height = output.height;
-                y = workspace_offset * output.height;
+                width = output.dimensions.width;
+                height = output.dimensions.height;
+                y = output.dimensions.y + y_offset;
             } else {
                 window_item.river_window.setBorders(
                     edges,
@@ -93,10 +116,10 @@ pub fn apply() void {
                     unfocused_color.a,
                 );
 
-                width = @as(i32, @intFromFloat(base_width * window_item.proportion)) - gap;
-                height = output.non_exclusive_height - 2 * config.config.vertical_gap;
-                y = workspace_offset * output.height +
-                    output.non_exclusive_y + config.config.vertical_gap;
+                width_with_gap = @intFromFloat(base_width * window_item.proportion);
+                width = width_with_gap - horizontal_gap;
+                height = non_exclusive.height - 2 * vertical_gap;
+                y = non_exclusive.y + y_offset + vertical_gap;
             }
 
             window_item.target = .{
@@ -105,7 +128,7 @@ pub fn apply() void {
                 .x = x,
                 .y = y,
             };
-            x += width + gap;
+            x += width + horizontal_gap;
         }
 
         x = focused_window.target.?.x;
@@ -115,9 +138,9 @@ pub fn apply() void {
             const window_item = &workspace_item.window_list.items[window_idx];
 
             if (window_item.fullscreen) {
-                width = output.width;
-                height = output.height;
-                y = workspace_offset * output.height;
+                width = output.dimensions.width;
+                height = output.dimensions.height;
+                y = output.dimensions.y + y_offset;
             } else {
                 window_item.river_window.setBorders(
                     edges,
@@ -128,13 +151,13 @@ pub fn apply() void {
                     unfocused_color.a,
                 );
 
-                width = @as(i32, @intFromFloat(base_width * window_item.proportion)) - gap;
-                height = output.non_exclusive_height - 2 * config.config.vertical_gap;
-                y = workspace_offset * output.height +
-                    output.non_exclusive_y + config.config.vertical_gap;
+                width_with_gap = @intFromFloat(base_width * window_item.proportion);
+                width = width_with_gap - horizontal_gap;
+                height = non_exclusive.height - 2 * vertical_gap;
+                y = non_exclusive.y + y_offset + vertical_gap;
             }
 
-            x -= gap + width;
+            x -= horizontal_gap + width;
             window_item.target = .{
                 .width = width,
                 .height = height,
@@ -143,81 +166,32 @@ pub fn apply() void {
             };
         }
 
-        if (!should_center) snapToEdge(workspace_item);
+        if (!should_center) snapToEdge(workspace_item.window_list.items, non_exclusive);
     }
     animation.start_time = std.time.milliTimestamp();
 }
 
-fn snapToEdge(workspace: *Workspace) void {
-    const window_list = workspace.window_list.items;
+fn snapToEdge(window_list: []window.Window, non_exclusive: Dimensions) void {
+    const gap = config.config.horizontal_gap;
 
-    var front_distance: ?i32 = null;
-    const x_front = window_list[0].target.?.x;
-    const x_origin = output.non_exclusive_x + config.config.horizontal_gap;
-    if (x_front > x_origin) front_distance = x_front - x_origin;
+    var head_distance: ?i32 = null;
+    const head = window_list[0].target.?.x;
+    const left_edge = non_exclusive.x + gap;
+    if (head > left_edge) head_distance = head - left_edge;
 
     var tail_distance: ?i32 = null;
-    const window_tail = window_list[window_list.len - 1];
-    const x_tail = window_tail.target.?.x;
-    const x_end = output.width - config.config.horizontal_gap;
-    const width = window_tail.target.?.width;
-    if (x_tail + width < x_end)
-        tail_distance = @min(x_end - x_tail - width, x_origin - x_front);
+    const tail_window = window_list[window_list.len - 1];
+    const tail = tail_window.target.?.x + tail_window.target.?.width;
+    const right_edge = non_exclusive.x + non_exclusive.width - gap;
+    if (tail < right_edge)
+        tail_distance = @min(right_edge - tail, left_edge - head);
 
     for (window_list) |*item| {
         const x = &item.target.?.x;
-        if (front_distance) |distance| {
+        if (head_distance) |distance| {
             x.* -= distance;
         } else if (tail_distance) |distance| {
             x.* += distance;
         }
-    }
-}
-
-const Output = struct {
-    river_output: *river.OutputV1,
-    width: i32,
-    height: i32,
-    non_exclusive_width: i32,
-    non_exclusive_height: i32,
-    non_exclusive_x: i32,
-    non_exclusive_y: i32,
-};
-pub var output: Output = undefined;
-
-pub fn outputListener(
-    river_output: *river.OutputV1,
-    event: river.OutputV1.Event,
-    _: ?*anyopaque,
-) void {
-    switch (event) {
-        .dimensions => |dimensions| {
-            output = .{
-                .river_output = river_output,
-                .width = dimensions.width,
-                .height = dimensions.height,
-                .non_exclusive_width = dimensions.width,
-                .non_exclusive_height = dimensions.height,
-                .non_exclusive_x = 0,
-                .non_exclusive_y = 0,
-            };
-        },
-        else => {},
-    }
-}
-
-pub fn layerShellOutputListener(
-    _: *river.LayerShellOutputV1,
-    event: river.LayerShellOutputV1.Event,
-    _: ?*anyopaque,
-) void {
-    switch (event) {
-        .non_exclusive_area => |non_exclusive_area| {
-            output.non_exclusive_width = non_exclusive_area.width;
-            output.non_exclusive_height = non_exclusive_area.height;
-            output.non_exclusive_x = non_exclusive_area.x;
-            output.non_exclusive_y = non_exclusive_area.y;
-            apply();
-        },
     }
 }

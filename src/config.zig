@@ -2,7 +2,7 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const keybind = @import("keybind.zig");
+const keybinding = @import("keybinding.zig");
 
 const Config = struct {
     vertical_gap: i32,
@@ -13,7 +13,7 @@ const Config = struct {
     animation_duration: u32,
     border: struct { width: u8, focused_color: Color, unfocused_color: Color },
     spawn_at_startup: []const []const []const u8,
-    keybinds: []keybind.Keybind,
+    keybindings: []keybinding.Keybinding,
 };
 
 const Color = struct {
@@ -48,6 +48,8 @@ fn findConfig(allocator: std.mem.Allocator) ?[]u8 {
                 std.debug.print("Failed to read $XDG_CONFIG_HOME: {}\n", .{err});
                 break :xdg_config_home;
             };
+        defer allocator.free(xdg_config_home);
+
         const path = std.fs.path.join(allocator, &.{
             xdg_config_home,
             "rill",
@@ -64,6 +66,8 @@ fn findConfig(allocator: std.mem.Allocator) ?[]u8 {
             std.debug.print("Failed to read $HOME: {}\n", .{err});
             break :home;
         };
+        defer allocator.free(home);
+
         const path = std.fs.path.join(allocator, &.{
             home,
             ".config",
@@ -82,6 +86,7 @@ fn findConfig(allocator: std.mem.Allocator) ?[]u8 {
 
 pub fn loadConfig(allocator: std.mem.Allocator) void {
     const path = findConfig(allocator) orelse return;
+    defer allocator.free(path);
 
     const content = std.fs.cwd().readFileAllocOptions(
         allocator,
@@ -94,12 +99,13 @@ pub fn loadConfig(allocator: std.mem.Allocator) void {
         std.debug.print("Failed to read {s}: {}\n", .{ path, err });
         return;
     };
+    defer allocator.free(content);
 
     config = std.zon.parse.fromSlice(Config, allocator, content, null, .{}) catch |err| {
         std.debug.print("Failed to parse {s}: {}\n", .{ path, err });
         return;
     };
-    std.debug.print("Loaded config file from {s}\n", .{path});
+    std.debug.print("Loaded config file: {s}\n", .{path});
 }
 
 pub var config: Config = .{
@@ -115,10 +121,10 @@ pub var config: Config = .{
         .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
     .spawn_at_startup = &.{},
-    .keybinds = &default_keybinds,
+    .keybindings = &default_keybindings,
 };
 
-var default_keybinds = [_]keybind.Keybind{
+var default_keybindings = [_]keybinding.Keybinding{
     .{
         .key = "t",
         .modifiers = .{ .mod4 = true },
@@ -146,6 +152,12 @@ var default_keybinds = [_]keybind.Keybind{
     },
 
     .{
+        .key = "r",
+        .modifiers = .{ .mod4 = true },
+        .action = .reload_config,
+    },
+
+    .{
         .key = "q",
         .modifiers = .{ .mod4 = true },
         .action = .close_window,
@@ -170,6 +182,7 @@ var default_keybinds = [_]keybind.Keybind{
         .modifiers = .{ .mod4 = true, .shift = true },
         .action = .move_window_right,
     },
+
     .{
         .key = "-",
         .modifiers = .{ .mod4 = true },
@@ -289,8 +302,23 @@ var default_keybinds = [_]keybind.Keybind{
     },
 
     .{
-        .key = "r",
+        .key = "Left",
         .modifiers = .{ .mod4 = true },
-        .action = .reload_config,
+        .action = .focus_output_left,
+    },
+    .{
+        .key = "Right",
+        .modifiers = .{ .mod4 = true },
+        .action = .focus_output_right,
+    },
+    .{
+        .key = "Up",
+        .modifiers = .{ .mod4 = true },
+        .action = .focus_output_up,
+    },
+    .{
+        .key = "Down",
+        .modifiers = .{ .mod4 = true },
+        .action = .focus_output_down,
     },
 };

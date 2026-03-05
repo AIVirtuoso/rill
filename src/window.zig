@@ -15,7 +15,7 @@ pub const Window = struct {
     height: i32,
     x: i32,
     y: i32,
-    target: ?animation.Target,
+    target: ?layout.Dimensions,
 };
 
 pub var pending: ?*river.WindowV1 = null;
@@ -26,11 +26,14 @@ fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
         return;
     };
 
+    const output = &layout.output_list.items[layout.focused_output_index];
+    const non_exclusive = output.non_exclusive orelse output.dimensions;
     const gap = config.config.horizontal_gap;
+    const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
+
     const proportion = config.config.window_width_proportion;
-    const base_width: f32 = @floatFromInt(layout.output.non_exclusive_width - gap);
     const width_with_gap: i32 = @intFromFloat(base_width * proportion);
-    const height = layout.output.non_exclusive_height - 2 * config.config.vertical_gap;
+    const height = non_exclusive.height - 2 * config.config.vertical_gap;
 
     const window = Window{
         .river_window = river_window,
@@ -39,12 +42,12 @@ fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
         .fullscreen = false,
         .width = width_with_gap - gap,
         .height = height,
-        .x = layout.output.width,
-        .y = layout.output.non_exclusive_y + config.config.vertical_gap,
+        .x = output.dimensions.x + output.dimensions.width,
+        .y = non_exclusive.y + config.config.vertical_gap,
         .target = null,
     };
 
-    const workspace = &layout.workspace_list[layout.focused_workspace_index];
+    const workspace = &output.workspace_list[output.focused_workspace_index];
     var window_index: usize = 0;
     if (workspace.focused_window_index) |index| window_index = index + 1;
 
@@ -68,7 +71,8 @@ pub fn windowListener(
         return;
     }
 
-    for (&layout.workspace_list) |*workspace_item| {
+    const output = &layout.output_list.items[layout.focused_output_index];
+    for (&output.workspace_list) |*workspace_item| {
         const focused_window_index = workspace_item.focused_window_index orelse continue;
 
         for (workspace_item.window_list.items, 0..) |*window_item, idx| {
