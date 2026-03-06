@@ -67,7 +67,7 @@ fn registryListener(
         .global => |global| {
             const interface_name = std.mem.span(global.interface);
             if (std.mem.eql(u8, interface_name, "river_window_manager_v1")) {
-                river_window_manager = registry.bind(global.name, river.WindowManagerV1, 3) catch null;
+                river_window_manager = registry.bind(global.name, river.WindowManagerV1, 4) catch null;
             } else if (std.mem.eql(u8, interface_name, "river_xkb_bindings_v1")) {
                 river_xkb_bindings = registry.bind(global.name, river.XkbBindingsV1, 2) catch null;
             } else if (std.mem.eql(u8, interface_name, "river_layer_shell_v1")) {
