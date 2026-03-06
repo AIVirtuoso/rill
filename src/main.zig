@@ -10,54 +10,40 @@ const layout = @import("layout.zig");
 const types = @import("types.zig");
 const window = @import("window.zig");
 
-var gpa = std.heap.DebugAllocator(.{}).init;
-var allocator = gpa.allocator();
-
-var river_window_manager: ?*river.WindowManagerV1 = null;
-var river_xkb_bindings: ?*river.XkbBindingsV1 = null;
-var river_layer_shell: ?*river.LayerShellV1 = null;
-var river_seat: ?*river.SeatV1 = null;
+var wm: types.WindowManager = .{};
 
 pub fn main() !void {
-    defer _ = gpa.deinit();
+    const allocator = wm.gpa.allocator();
 
-    const display = try wl.Display.connect(null);
-    defer display.disconnect();
+    wm.display = try wl.Display.connect(null);
+    wm.registry = try wm.display.getRegistry();
 
-    const registry = try display.getRegistry();
-    defer registry.destroy();
+    wm.registry.setListener(?*anyopaque, registryListener, null);
+    _ = wm.display.roundtrip();
 
-    registry.setListener(?*anyopaque, registryListener, null);
-    _ = display.roundtrip();
-
-    const window_manager = river_window_manager orelse {
+    const window_manager = wm.river_window_manager orelse {
         std.debug.print("Failed to find window manager\n", .{});
         return;
     };
     window_manager.setListener(?*anyopaque, windowManagerListener, null);
 
-    defer layout.output_list.deinit(allocator);
-    defer for (layout.output_list.items) |*output|
-        for (&output.workspace_list) |*item| item.window_list.deinit(allocator);
-    defer keybinding.xkb_binding_list.deinit(allocator);
-
-    config.loadConfig(allocator);
-    defer std.zon.parse.free(allocator, config.config);
-
-    for (config.config.spawn_at_startup) |command| {
+    if (config.loadConfig(allocator)) |loaded_config| wm.config = loaded_config;
+    for (wm.config.spawn_at_startup) |command| {
         var child = std.process.Child.init(command, allocator);
         child.spawn() catch |err|
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
     }
 
     while (true) {
-        const status = display.dispatch();
+        const status = wm.display.dispatch();
         if (@intFromEnum(status) != 0) {
             std.debug.print("Program stopped with status: {}\n", .{status});
             break;
         }
         if (animation.start_time) |_| window_manager.manageDirty();
     }
+
+    wm.deinit();
 }
 
 fn registryListener(
@@ -69,11 +55,14 @@ fn registryListener(
         .global => |global| {
             const interface_name = std.mem.span(global.interface);
             if (std.mem.eql(u8, interface_name, "river_window_manager_v1")) {
-                river_window_manager = registry.bind(global.name, river.WindowManagerV1, 4) catch null;
+                wm.river_window_manager =
+                    registry.bind(global.name, river.WindowManagerV1, 4) catch null;
             } else if (std.mem.eql(u8, interface_name, "river_xkb_bindings_v1")) {
-                river_xkb_bindings = registry.bind(global.name, river.XkbBindingsV1, 2) catch null;
+                wm.river_xkb_bindings =
+                    registry.bind(global.name, river.XkbBindingsV1, 2) catch null;
             } else if (std.mem.eql(u8, interface_name, "river_layer_shell_v1")) {
-                river_layer_shell = registry.bind(global.name, river.LayerShellV1, 1) catch null;
+                wm.river_layer_shell =
+                    registry.bind(global.name, river.LayerShellV1, 1) catch null;
             }
         },
         .global_remove => {},
@@ -87,24 +76,20 @@ fn windowManagerListener(
 ) void {
     switch (event) {
         .output => |output_event| {
-            const workspace_list = [_]types.Workspace{.{
-                .window_list = std.ArrayList(types.Window){},
-                .focused_window_index = null,
-            }} ** 10;
-
-            layout.output_list.append(allocator, .{
+            const output = types.Output{
                 .river_output = output_event.id,
-                .workspace_list = workspace_list,
-                .focused_workspace_index = 0,
+                .workspace_list = [_]types.Workspace{.{}} ** 10,
+                .focused_workspace_idx = 0,
                 .dimensions = undefined,
                 .non_exclusive = null,
-            }) catch |err| {
+            };
+            wm.output_list.append(wm.gpa.allocator(), output) catch |err| {
                 std.debug.print("Failed to add output: {}\n", .{err});
                 return;
             };
             output_event.id.setListener(?*anyopaque, outputListener, null);
 
-            const layer_shell = river_layer_shell orelse {
+            const layer_shell = wm.river_layer_shell orelse {
                 std.debug.print("Failed to find layer shell\n", .{});
                 return;
             };
@@ -120,26 +105,22 @@ fn windowManagerListener(
             );
         },
         .seat => |seat_event| {
-            river_seat = seat_event.id;
-            const xkb_bindings = river_xkb_bindings orelse {
-                std.debug.print("Failed to find xkb bindings\n", .{});
-                return;
-            };
-            keybinding.setup(allocator, xkb_bindings, seat_event.id);
+            wm.river_seat = seat_event.id;
+            keybinding.setup(&wm);
         },
         .window => |window_event| {
             window.pending = window_event.id;
-            window_event.id.setListener(*std.mem.Allocator, window.windowListener, &allocator);
+            window_event.id.setListener(*types.WindowManager, window.windowListener, &wm);
             window_event.id.hide();
             window_event.id.proposeDimensions(0, 0);
-            if (config.config.no_csd) window_event.id.useSsd();
+            if (wm.config.no_csd) window_event.id.useSsd();
         },
         .manage_start => {
-            const seat = river_seat orelse {
+            const seat = wm.river_seat orelse {
                 std.debug.print("Failed to find seat\n", .{});
                 return;
             };
-            animation.apply(seat);
+            animation.apply(&wm.output_list.items[wm.focused_output_idx], wm.config, seat);
             window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),
@@ -153,16 +134,16 @@ fn outputListener(
     event: river.OutputV1.Event,
     _: ?*anyopaque,
 ) void {
-    for (layout.output_list.items) |*item| {
-        if (item.river_output != river_output) continue;
+    for (wm.output_list.items) |*output| {
+        if (output.river_output != river_output) continue;
         switch (event) {
             .dimensions => |dimensions| {
-                item.dimensions.width = dimensions.width;
-                item.dimensions.height = dimensions.height;
+                output.dimensions.width = dimensions.width;
+                output.dimensions.height = dimensions.height;
             },
             .position => |position| {
-                item.dimensions.x = position.x;
-                item.dimensions.y = position.y;
+                output.dimensions.x = position.x;
+                output.dimensions.y = position.y;
             },
             else => {},
         }
@@ -174,17 +155,17 @@ fn layerShellOutputListener(
     event: river.LayerShellOutputV1.Event,
     river_output: *river.OutputV1,
 ) void {
-    for (layout.output_list.items) |*item| {
-        if (item.river_output != river_output) continue;
+    for (wm.output_list.items, 0..) |*output, idx| {
+        if (output.river_output != river_output) continue;
         switch (event) {
             .non_exclusive_area => |area| {
-                item.non_exclusive = .{
+                output.non_exclusive = .{
                     .width = area.width,
                     .height = area.height,
                     .x = area.x,
                     .y = area.y,
                 };
-                layout.apply();
+                if (idx == wm.focused_output_idx) layout.apply(output, wm.config);
             },
         }
     }

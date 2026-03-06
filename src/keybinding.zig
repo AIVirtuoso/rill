@@ -33,199 +33,203 @@ fn parseKey(key: []const u8) ?u32 {
     return null;
 }
 
-pub var xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .{};
-var data: struct {
-    allocator: std.mem.Allocator,
-    xkb_bindings: *river.XkbBindingsV1,
-    seat: *river.SeatV1,
-} = undefined;
+pub fn setup(wm: *types.WindowManager) void {
+    const xkb_bindings = wm.river_xkb_bindings orelse {
+        std.debug.print("Failed to find xkb bindings\n", .{});
+        return;
+    };
 
-pub fn setup(
-    allocator: std.mem.Allocator,
-    xkb_bindings: *river.XkbBindingsV1,
-    seat: *river.SeatV1,
-) void {
-    for (xkb_binding_list.items) |item| item.destroy();
-    xkb_binding_list.clearRetainingCapacity();
+    for (wm.xkb_binding_list.items) |item| item.destroy();
+    wm.xkb_binding_list.clearRetainingCapacity();
 
-    for (config.config.keybindings) |*item| {
-        const keysym = parseKey(item.key) orelse {
+    for (wm.config.keybindings) |*keybinding| {
+        const keysym = parseKey(keybinding.key) orelse {
             std.debug.print("Failed to parse key\n", .{});
             continue;
         };
-        const xkb_binding = xkb_bindings.getXkbBinding(seat, keysym, item.modifiers) catch |err| {
+        const xkb_binding = xkb_bindings.getXkbBinding(
+            wm.river_seat.?,
+            keysym,
+            keybinding.modifiers,
+        ) catch |err| {
             std.debug.print("Failed to get xkb binding: {}\n", .{err});
             continue;
         };
 
-        xkb_binding_list.append(allocator, xkb_binding) catch |err| {
+        keybinding.id = xkb_binding.getId();
+        wm.xkb_binding_list.append(wm.gpa.allocator(), xkb_binding) catch |err| {
             std.debug.print("Failed to add xkb binding: {}\n", .{err});
             return;
         };
-        xkb_binding.setListener(*types.Action, xkbBindingListener, @constCast(&item.action));
+        xkb_binding.setListener(*types.WindowManager, xkbBindingListener, wm);
         xkb_binding.enable();
     }
-
-    data = .{
-        .allocator = allocator,
-        .xkb_bindings = xkb_bindings,
-        .seat = seat,
-    };
 }
 
 fn xkbBindingListener(
-    _: *river.XkbBindingV1,
+    xkb_binding: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
-    action: *types.Action,
+    wm: *types.WindowManager,
 ) void {
-    switch (event) {
-        .pressed => {
-            const output = &layout.output_list.items[layout.focused_output_index];
-            const workspace = &output.workspace_list[output.focused_workspace_index];
+    for (wm.config.keybindings) |keybinding| {
+        if (keybinding.id != xkb_binding.getId()) continue;
 
-            switch (action.*) {
-                .spawn => |command| {
-                    var child = std.process.Child.init(command, data.allocator);
-                    child.spawn() catch |err|
-                        std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
-                },
-                .reload_config => {
-                    config.loadConfig(data.allocator);
-                    setup(data.allocator, data.xkb_bindings, data.seat);
-                    layout.apply();
-                },
-                .close_window => {
-                    const window_index = workspace.focused_window_index orelse return;
-                    const focused_window = workspace.window_list.items[window_index];
-                    focused_window.river_window.close();
-                },
-                .focus_window_left => {
-                    const window_index = workspace.focused_window_index orelse return;
-                    if (window_index == 0) return;
-                    workspace.focused_window_index = window_index - 1;
-                    layout.apply();
-                },
-                .focus_window_right => {
-                    const window_index = workspace.focused_window_index orelse return;
-                    if (window_index == workspace.window_list.items.len - 1) return;
-                    workspace.focused_window_index = window_index + 1;
-                    layout.apply();
-                },
-                .move_window_left => {
-                    const window_index = workspace.focused_window_index orelse return;
-                    if (window_index == 0) return;
+        switch (event) {
+            .pressed => {
+                const output = &wm.output_list.items[wm.focused_output_idx];
+                const workspace = &output.workspace_list[output.focused_workspace_idx];
+                const allocator = wm.gpa.allocator();
 
-                    std.mem.swap(
-                        types.Window,
-                        &workspace.window_list.items[window_index],
-                        &workspace.window_list.items[window_index - 1],
-                    );
-                    workspace.focused_window_index = window_index - 1;
+                switch (keybinding.action) {
+                    .spawn => |command| {
+                        var child = std.process.Child.init(command, allocator);
+                        child.spawn() catch |err|
+                            std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+                    },
+                    .reload_config => {
+                        if (config.loadConfig(allocator)) |loaded_config|
+                            wm.config = loaded_config;
+                        setup(wm);
+                        layout.apply(output, wm.config);
+                    },
+                    .close_window => {
+                        const idx = workspace.focused_window_idx orelse return;
+                        const window = workspace.window_list.items[idx];
+                        window.river_window.close();
+                    },
+                    .focus_window_left => {
+                        const idx = workspace.focused_window_idx orelse return;
+                        if (idx == 0) return;
+                        workspace.focused_window_idx = idx - 1;
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_window_right => {
+                        const idx = workspace.focused_window_idx orelse return;
+                        if (idx == workspace.window_list.items.len - 1) return;
+                        workspace.focused_window_idx = idx + 1;
+                        layout.apply(output, wm.config);
+                    },
+                    .move_window_left => {
+                        const idx = workspace.focused_window_idx orelse return;
+                        if (idx == 0) return;
 
-                    layout.apply();
-                },
-                .move_window_right => {
-                    const window_index = workspace.focused_window_index orelse return;
-                    if (window_index == workspace.window_list.items.len - 1) return;
+                        std.mem.swap(
+                            types.Window,
+                            &workspace.window_list.items[idx],
+                            &workspace.window_list.items[idx - 1],
+                        );
+                        workspace.focused_window_idx = idx - 1;
 
-                    std.mem.swap(
-                        types.Window,
-                        &workspace.window_list.items[window_index],
-                        &workspace.window_list.items[window_index + 1],
-                    );
-                    workspace.focused_window_index = window_index + 1;
+                        layout.apply(output, wm.config);
+                    },
+                    .move_window_right => {
+                        const idx = workspace.focused_window_idx orelse return;
+                        if (idx == workspace.window_list.items.len - 1) return;
 
-                    layout.apply();
-                },
-                .adjust_window_width => |increment| {
-                    const window_index = workspace.focused_window_index orelse return;
-                    var focused_window = &workspace.window_list.items[window_index];
-                    if (focused_window.fullscreen) return;
+                        std.mem.swap(
+                            types.Window,
+                            &workspace.window_list.items[idx],
+                            &workspace.window_list.items[idx + 1],
+                        );
+                        workspace.focused_window_idx = idx + 1;
 
-                    const non_exclusive = output.non_exclusive orelse output.dimensions;
-                    const gap = config.config.horizontal_gap;
-                    const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
-                    const width_with_gap: i32 =
-                        @intFromFloat(base_width * (focused_window.proportion + increment));
+                        layout.apply(output, wm.config);
+                    },
+                    .adjust_window_width => |increment| {
+                        const idx = workspace.focused_window_idx orelse return;
+                        var window = &workspace.window_list.items[idx];
+                        if (window.fullscreen) return;
 
-                    if (width_with_gap - gap < 2 * config.config.border.width) return;
-                    focused_window.proportion += increment;
+                        const non_exclusive = output.non_exclusive orelse output.dimensions;
+                        const gap = wm.config.horizontal_gap;
+                        const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
+                        const width_with_gap: i32 =
+                            @intFromFloat(base_width * (window.proportion + increment));
 
-                    layout.apply();
-                },
-                .toggle_fullscreen => {
-                    const window_index = workspace.focused_window_index orelse return;
-                    const focused_window = &workspace.window_list.items[window_index];
-                    focused_window.fullscreen = !focused_window.fullscreen;
-                    layout.apply();
-                },
-                .focus_workspace => |number| {
-                    if (number == 0 or number > 10) return;
-                    if (output.focused_workspace_index == number - 1) return;
-                    output.focused_workspace_index = number - 1;
-                    layout.apply();
-                },
-                .move_window_to_workspace => |number| {
-                    if (number == 0 or number > 10) return;
-                    if (output.focused_workspace_index == number - 1) return;
-                    const window_index = workspace.focused_window_index orelse return;
+                        if (width_with_gap - gap < 2 * wm.config.border.width) return;
+                        window.proportion += increment;
 
-                    if (workspace.window_list.items.len == 1) {
-                        workspace.focused_window_index = null;
-                    } else if (window_index != 0) {
-                        workspace.focused_window_index = window_index - 1;
-                    }
+                        layout.apply(output, wm.config);
+                    },
+                    .toggle_fullscreen => {
+                        const idx = workspace.focused_window_idx orelse return;
+                        const window = &workspace.window_list.items[idx];
+                        window.fullscreen = !window.fullscreen;
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_workspace => |number| {
+                        if (number == 0 or number > 10) return;
+                        if (output.focused_workspace_idx == number - 1) return;
+                        output.focused_workspace_idx = number - 1;
+                        layout.apply(output, wm.config);
+                    },
+                    .move_window_to_workspace => |number| {
+                        if (number == 0 or number > 10) return;
+                        if (output.focused_workspace_idx == number - 1) return;
+                        const current_idx = workspace.focused_window_idx orelse return;
 
-                    const moved_window = workspace.window_list.orderedRemove(window_index);
+                        if (workspace.window_list.items.len == 1) {
+                            workspace.focused_window_idx = null;
+                        } else if (current_idx != 0) {
+                            workspace.focused_window_idx = current_idx - 1;
+                        }
 
-                    const target_workspace = &output.workspace_list[number - 1];
-                    var target_window_index: usize = 0;
-                    if (target_workspace.focused_window_index) |index|
-                        target_window_index = index + 1;
+                        const window = workspace.window_list.orderedRemove(current_idx);
 
-                    target_workspace.window_list.insert(
-                        data.allocator,
-                        target_window_index,
-                        moved_window,
-                    ) catch |err| {
-                        std.debug.print("Failed to add window: {}\n", .{err});
-                        return;
-                    };
-                    target_workspace.focused_window_index = target_window_index;
-                    output.focused_workspace_index = number - 1;
+                        const target_workspace = &output.workspace_list[number - 1];
+                        var target_idx: usize = 0;
+                        if (target_workspace.focused_window_idx) |idx|
+                            target_idx = idx + 1;
 
-                    layout.apply();
-                },
-                .focus_output_left => {
-                    for (layout.output_list.items, 0..) |item, idx| {
-                        if (item.dimensions.x + item.dimensions.width == output.dimensions.x)
-                            layout.focused_output_index = idx;
-                    }
-                    layout.apply();
-                },
-                .focus_output_right => {
-                    for (layout.output_list.items, 0..) |item, idx| {
-                        if (item.dimensions.x == output.dimensions.x + output.dimensions.width)
-                            layout.focused_output_index = idx;
-                    }
-                    layout.apply();
-                },
-                .focus_output_up => {
-                    for (layout.output_list.items, 0..) |item, idx| {
-                        if (item.dimensions.y + item.dimensions.height == output.dimensions.y)
-                            layout.focused_output_index = idx;
-                    }
-                    layout.apply();
-                },
-                .focus_output_down => {
-                    for (layout.output_list.items, 0..) |item, idx| {
-                        if (item.dimensions.y == output.dimensions.y + output.dimensions.height)
-                            layout.focused_output_index = idx;
-                    }
-                    layout.apply();
-                },
-            }
-        },
-        else => {},
+                        target_workspace.window_list.insert(
+                            allocator,
+                            target_idx,
+                            window,
+                        ) catch |err| {
+                            std.debug.print("Failed to add window: {}\n", .{err});
+                            return;
+                        };
+                        target_workspace.focused_window_idx = target_idx;
+                        output.focused_workspace_idx = number - 1;
+
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_output_left => {
+                        for (wm.output_list.items, 0..) |item, idx| {
+                            if (item.dimensions.x + item.dimensions.width ==
+                                output.dimensions.x)
+                                wm.focused_output_idx = idx;
+                        }
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_output_right => {
+                        for (wm.output_list.items, 0..) |item, idx| {
+                            if (item.dimensions.x ==
+                                output.dimensions.x + output.dimensions.width)
+                                wm.focused_output_idx = idx;
+                        }
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_output_up => {
+                        for (wm.output_list.items, 0..) |item, idx| {
+                            if (item.dimensions.y + item.dimensions.height ==
+                                output.dimensions.y)
+                                wm.focused_output_idx = idx;
+                        }
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_output_down => {
+                        for (wm.output_list.items, 0..) |item, idx| {
+                            if (item.dimensions.y ==
+                                output.dimensions.y + output.dimensions.height)
+                                wm.focused_output_idx = idx;
+                        }
+                        layout.apply(output, wm.config);
+                    },
+                }
+            },
+            else => {},
+        }
+        return;
     }
 }

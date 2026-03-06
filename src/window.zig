@@ -2,26 +2,29 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const config = @import("config.zig");
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
 pub var pending: ?*river.WindowV1 = null;
 
-fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
+fn addWindow(
+    river_window: *river.WindowV1,
+    output: *types.Output,
+    config: types.Config,
+    allocator: std.mem.Allocator,
+) void {
     const river_node = river_window.getNode() catch |err| {
         std.debug.print("Failed to get window's node: {}\n", .{err});
         return;
     };
 
-    const output = &layout.output_list.items[layout.focused_output_index];
     const non_exclusive = output.non_exclusive orelse output.dimensions;
-    const gap = config.config.horizontal_gap;
+    const gap = config.horizontal_gap;
     const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
 
-    const proportion = config.config.window_width_proportion;
+    const proportion = config.window_width_proportion;
     const width_with_gap: i32 = @intFromFloat(base_width * proportion);
-    const height = non_exclusive.height - 2 * config.config.vertical_gap;
+    const height = non_exclusive.height - 2 * config.vertical_gap;
 
     const window = types.Window{
         .river_window = river_window,
@@ -31,60 +34,61 @@ fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
         .width = width_with_gap - gap,
         .height = height,
         .x = output.dimensions.x + output.dimensions.width,
-        .y = non_exclusive.y + config.config.vertical_gap,
+        .y = non_exclusive.y + config.vertical_gap,
         .target = null,
     };
 
-    const workspace = &output.workspace_list[output.focused_workspace_index];
-    var window_index: usize = 0;
-    if (workspace.focused_window_index) |index| window_index = index + 1;
+    const workspace = &output.workspace_list[output.focused_workspace_idx];
+    var target_idx: usize = 0;
+    if (workspace.focused_window_idx) |idx| target_idx = idx + 1;
 
-    workspace.window_list.insert(allocator, window_index, window) catch |err| {
+    workspace.window_list.insert(allocator, target_idx, window) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
-    workspace.focused_window_index = window_index;
+    workspace.focused_window_idx = target_idx;
 
-    layout.apply();
+    layout.apply(output, config);
 }
 
 pub fn windowListener(
     river_window: *river.WindowV1,
     event: river.WindowV1.Event,
-    allocator: *std.mem.Allocator,
+    wm: *types.WindowManager,
 ) void {
+    const output = &wm.output_list.items[wm.focused_output_idx];
+
     if (event == .dimensions and river_window == pending) {
-        addWindow(allocator.*, pending.?);
+        addWindow(pending.?, output, wm.config, wm.gpa.allocator());
         pending = null;
         return;
     }
 
-    const output = &layout.output_list.items[layout.focused_output_index];
-    for (&output.workspace_list) |*workspace_item| {
-        const focused_window_index = workspace_item.focused_window_index orelse continue;
+    for (&output.workspace_list) |*workspace| {
+        const focused_window_idx = workspace.focused_window_idx orelse continue;
 
-        for (workspace_item.window_list.items, 0..) |*window_item, idx| {
-            if (window_item.river_window != river_window) continue;
+        for (workspace.window_list.items, 0..) |*window, idx| {
+            if (window.river_window != river_window) continue;
 
             switch (event) {
                 .closed => {
-                    if (workspace_item.window_list.items.len == 1) {
-                        workspace_item.focused_window_index = null;
-                    } else if (idx <= focused_window_index and focused_window_index != 0) {
-                        workspace_item.focused_window_index = focused_window_index - 1;
+                    if (workspace.window_list.items.len == 1) {
+                        workspace.focused_window_idx = null;
+                    } else if (idx <= focused_window_idx and focused_window_idx != 0) {
+                        workspace.focused_window_idx = focused_window_idx - 1;
                     }
 
-                    _ = workspace_item.window_list.orderedRemove(idx);
+                    _ = workspace.window_list.orderedRemove(idx);
                     river_window.destroy();
-                    layout.apply();
+                    layout.apply(output, wm.config);
                 },
                 .fullscreen_requested => {
-                    window_item.fullscreen = true;
-                    layout.apply();
+                    window.fullscreen = true;
+                    layout.apply(output, wm.config);
                 },
                 .exit_fullscreen_requested => {
-                    window_item.fullscreen = false;
-                    layout.apply();
+                    window.fullscreen = false;
+                    layout.apply(output, wm.config);
                 },
                 else => {},
             }

@@ -3,42 +3,37 @@ const wayland = @import("wayland");
 const river = wayland.client.river;
 
 const animation = @import("animation.zig");
-const config = @import("config.zig");
 const types = @import("types.zig");
 
-pub var output_list = std.ArrayList(types.Output){};
-pub var focused_output_index: usize = 0;
-
-pub fn apply() void {
+pub fn apply(output: *types.Output, config: types.Config) void {
     const edges = river.WindowV1.Edges{
         .top = true,
         .bottom = true,
         .left = true,
         .right = true,
     };
-    const focused_color = config.config.border.focused_color.toRiverColor();
-    const unfocused_color = config.config.border.unfocused_color.toRiverColor();
+    const focused_color = config.border.focused_color.toRiverColor();
+    const unfocused_color = config.border.unfocused_color.toRiverColor();
 
-    const output = &output_list.items[focused_output_index];
     const non_exclusive = output.non_exclusive orelse output.dimensions;
 
-    const horizontal_gap = config.config.horizontal_gap;
+    const horizontal_gap = config.horizontal_gap;
     const base_width: f32 = @floatFromInt(non_exclusive.width - horizontal_gap);
 
-    const vertical_gap = config.config.vertical_gap;
+    const vertical_gap = config.vertical_gap;
     var height = non_exclusive.height - 2 * vertical_gap;
 
-    for (&output.workspace_list, 0..) |*workspace_item, workspace_idx| {
-        const focused_window_index = workspace_item.focused_window_index orelse continue;
-        const focused_window = &workspace_item.window_list.items[focused_window_index];
+    for (&output.workspace_list, 0..) |*workspace, workspace_idx| {
+        const focused_window_idx = workspace.focused_window_idx orelse continue;
+        const focused_window = &workspace.window_list.items[focused_window_idx];
 
         var width_with_gap: i32 = @intFromFloat(base_width * focused_window.proportion);
         var width = width_with_gap - horizontal_gap;
 
-        const should_center = switch (config.config.center_focused_window) {
+        const should_center = switch (config.center_focused_window) {
             .never => false,
             .always => true,
-            .single => workspace_item.window_list.items.len == 1,
+            .single => workspace.window_list.items.len == 1,
         };
 
         var x = focused_window.x;
@@ -54,7 +49,7 @@ pub fn apply() void {
         }
 
         const workspace_offset = @as(i32, @intCast(workspace_idx)) -
-            @as(i32, @intCast(output.focused_workspace_index));
+            @as(i32, @intCast(output.focused_workspace_idx));
         const y_offset = workspace_offset * output.dimensions.height;
         var y = non_exclusive.y + y_offset + vertical_gap;
 
@@ -66,7 +61,7 @@ pub fn apply() void {
         } else {
             focused_window.river_window.setBorders(
                 edges,
-                config.config.border.width,
+                config.border.width,
                 focused_color.r,
                 focused_color.g,
                 focused_color.b,
@@ -82,28 +77,28 @@ pub fn apply() void {
         };
 
         x += width + horizontal_gap;
-        for (workspace_item.window_list.items[focused_window_index + 1 ..]) |*window_item| {
-            if (window_item.fullscreen) {
+        for (workspace.window_list.items[focused_window_idx + 1 ..]) |*window| {
+            if (window.fullscreen) {
                 width = output.dimensions.width;
                 height = output.dimensions.height;
                 y = output.dimensions.y + y_offset;
             } else {
-                window_item.river_window.setBorders(
+                window.river_window.setBorders(
                     edges,
-                    config.config.border.width,
+                    config.border.width,
                     unfocused_color.r,
                     unfocused_color.g,
                     unfocused_color.b,
                     unfocused_color.a,
                 );
 
-                width_with_gap = @intFromFloat(base_width * window_item.proportion);
+                width_with_gap = @intFromFloat(base_width * window.proportion);
                 width = width_with_gap - horizontal_gap;
                 height = non_exclusive.height - 2 * vertical_gap;
                 y = non_exclusive.y + y_offset + vertical_gap;
             }
 
-            window_item.target = .{
+            window.target = .{
                 .width = width,
                 .height = height,
                 .x = x,
@@ -113,33 +108,33 @@ pub fn apply() void {
         }
 
         x = focused_window.target.?.x;
-        var window_idx = focused_window_index;
+        var window_idx = focused_window_idx;
         while (window_idx > 0) {
             window_idx -= 1;
-            const window_item = &workspace_item.window_list.items[window_idx];
+            const window = &workspace.window_list.items[window_idx];
 
-            if (window_item.fullscreen) {
+            if (window.fullscreen) {
                 width = output.dimensions.width;
                 height = output.dimensions.height;
                 y = output.dimensions.y + y_offset;
             } else {
-                window_item.river_window.setBorders(
+                window.river_window.setBorders(
                     edges,
-                    config.config.border.width,
+                    config.border.width,
                     unfocused_color.r,
                     unfocused_color.g,
                     unfocused_color.b,
                     unfocused_color.a,
                 );
 
-                width_with_gap = @intFromFloat(base_width * window_item.proportion);
+                width_with_gap = @intFromFloat(base_width * window.proportion);
                 width = width_with_gap - horizontal_gap;
                 height = non_exclusive.height - 2 * vertical_gap;
                 y = non_exclusive.y + y_offset + vertical_gap;
             }
 
             x -= horizontal_gap + width;
-            window_item.target = .{
+            window.target = .{
                 .width = width,
                 .height = height,
                 .x = x,
@@ -147,14 +142,20 @@ pub fn apply() void {
             };
         }
 
-        if (!should_center) snapToEdge(workspace_item.window_list.items, non_exclusive);
+        if (!should_center) snapToEdge(
+            workspace.window_list.items,
+            non_exclusive,
+            horizontal_gap,
+        );
     }
     animation.start_time = std.time.milliTimestamp();
 }
 
-fn snapToEdge(window_list: []types.Window, non_exclusive: types.Dimensions) void {
-    const gap = config.config.horizontal_gap;
-
+fn snapToEdge(
+    window_list: []types.Window,
+    non_exclusive: types.Dimensions,
+    gap: i32,
+) void {
     var head_distance: ?i32 = null;
     const head = window_list[0].target.?.x;
     const left_edge = non_exclusive.x + gap;
@@ -167,8 +168,8 @@ fn snapToEdge(window_list: []types.Window, non_exclusive: types.Dimensions) void
     if (tail < right_edge)
         tail_distance = @min(right_edge - tail, left_edge - head);
 
-    for (window_list) |*item| {
-        const x = &item.target.?.x;
+    for (window_list) |*window| {
+        const x = &window.target.?.x;
         if (head_distance) |distance| {
             x.* -= distance;
         } else if (tail_distance) |distance| {
