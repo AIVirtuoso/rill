@@ -4,7 +4,7 @@ const river = wayland.client.river;
 
 const config = @import("config.zig");
 const layout = @import("layout.zig");
-const window = @import("window.zig");
+const types = @import("types.zig");
 
 pub var start_time: ?i64 = null;
 
@@ -79,12 +79,12 @@ pub fn apply(seat: *river.SeatV1) void {
 }
 
 fn placeWindow(
-    window_item: *window.Window,
+    window_item: *types.Window,
     width: i32,
     height: i32,
     x: i32,
     y: i32,
-    screen: layout.Dimensions,
+    screen: types.Dimensions,
 ) void {
     var border_width = config.config.border.width;
     if (window_item.fullscreen) border_width = 0;

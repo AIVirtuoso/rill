@@ -2,7 +2,7 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const keybinding = @import("keybinding.zig");
+const types = @import("types.zig");
 
 const Config = struct {
     vertical_gap: i32,
@@ -13,7 +13,7 @@ const Config = struct {
     animation_duration: u32,
     border: struct { width: u8, focused_color: Color, unfocused_color: Color },
     spawn_at_startup: []const []const []const u8,
-    keybindings: []keybinding.Keybinding,
+    keybindings: []types.Keybinding,
 };
 
 const Color = struct {
@@ -124,7 +124,7 @@ pub var config: Config = .{
     .keybindings = &default_keybindings,
 };
 
-var default_keybindings = [_]keybinding.Keybinding{
+var default_keybindings = [_]types.Keybinding{
     .{
         .key = "t",
         .modifiers = .{ .mod4 = true },

@@ -4,31 +4,7 @@ const river = wayland.client.river;
 
 const config = @import("config.zig");
 const layout = @import("layout.zig");
-const window = @import("window.zig");
-
-pub const Keybinding = struct {
-    key: []const u8,
-    modifiers: river.SeatV1.Modifiers,
-    action: Action,
-};
-
-pub const Action = union(enum) {
-    spawn: []const []const u8,
-    reload_config: void,
-    close_window: void,
-    focus_window_left: void,
-    focus_window_right: void,
-    move_window_left: void,
-    move_window_right: void,
-    adjust_window_width: f32,
-    toggle_fullscreen: void,
-    focus_workspace: usize,
-    move_window_to_workspace: usize,
-    focus_output_left: void,
-    focus_output_right: void,
-    focus_output_up: void,
-    focus_output_down: void,
-};
+const types = @import("types.zig");
 
 const SpecialKeyMap = std.StaticStringMap(u32).initComptime(.{
     .{ "Left", 0xFF51 },
@@ -86,7 +62,7 @@ pub fn setup(
             std.debug.print("Failed to add xkb binding: {}\n", .{err});
             return;
         };
-        xkb_binding.setListener(*Action, xkbBindingListener, @constCast(&item.action));
+        xkb_binding.setListener(*types.Action, xkbBindingListener, @constCast(&item.action));
         xkb_binding.enable();
     }
 
@@ -100,7 +76,7 @@ pub fn setup(
 fn xkbBindingListener(
     _: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
-    action: *Action,
+    action: *types.Action,
 ) void {
     switch (event) {
         .pressed => {
@@ -140,7 +116,7 @@ fn xkbBindingListener(
                     if (window_index == 0) return;
 
                     std.mem.swap(
-                        window.Window,
+                        types.Window,
                         &workspace.window_list.items[window_index],
                         &workspace.window_list.items[window_index - 1],
                     );
@@ -153,7 +129,7 @@ fn xkbBindingListener(
                     if (window_index == workspace.window_list.items.len - 1) return;
 
                     std.mem.swap(
-                        window.Window,
+                        types.Window,
                         &workspace.window_list.items[window_index],
                         &workspace.window_list.items[window_index + 1],
                     );

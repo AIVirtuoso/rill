@@ -4,29 +4,10 @@ const river = wayland.client.river;
 
 const animation = @import("animation.zig");
 const config = @import("config.zig");
-const window = @import("window.zig");
+const types = @import("types.zig");
 
-pub const Dimensions = struct {
-    width: i32,
-    height: i32,
-    x: i32,
-    y: i32,
-};
-
-pub const Output = struct {
-    river_output: *river.OutputV1,
-    workspace_list: [10]Workspace,
-    focused_workspace_index: usize,
-    dimensions: Dimensions,
-    non_exclusive: ?Dimensions,
-};
-pub var output_list = std.ArrayList(Output){};
+pub var output_list = std.ArrayList(types.Output){};
 pub var focused_output_index: usize = 0;
-
-pub const Workspace = struct {
-    window_list: std.ArrayList(window.Window),
-    focused_window_index: ?usize,
-};
 
 pub fn apply() void {
     const edges = river.WindowV1.Edges{
@@ -171,7 +152,7 @@ pub fn apply() void {
     animation.start_time = std.time.milliTimestamp();
 }
 
-fn snapToEdge(window_list: []window.Window, non_exclusive: Dimensions) void {
+fn snapToEdge(window_list: []types.Window, non_exclusive: types.Dimensions) void {
     const gap = config.config.horizontal_gap;
 
     var head_distance: ?i32 = null;

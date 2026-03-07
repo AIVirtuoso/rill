@@ -2,21 +2,9 @@ const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
-const animation = @import("animation.zig");
 const config = @import("config.zig");
 const layout = @import("layout.zig");
-
-pub const Window = struct {
-    river_window: *river.WindowV1,
-    river_node: *river.NodeV1,
-    proportion: f32,
-    fullscreen: bool,
-    width: i32,
-    height: i32,
-    x: i32,
-    y: i32,
-    target: ?layout.Dimensions,
-};
+const types = @import("types.zig");
 
 pub var pending: ?*river.WindowV1 = null;
 
@@ -35,7 +23,7 @@ fn addWindow(allocator: std.mem.Allocator, river_window: *river.WindowV1) void {
     const width_with_gap: i32 = @intFromFloat(base_width * proportion);
     const height = non_exclusive.height - 2 * config.config.vertical_gap;
 
-    const window = Window{
+    const window = types.Window{
         .river_window = river_window,
         .river_node = river_node,
         .proportion = proportion,

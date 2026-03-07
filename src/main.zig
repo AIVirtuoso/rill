@@ -7,9 +7,10 @@ const animation = @import("animation.zig");
 const config = @import("config.zig");
 const keybinding = @import("keybinding.zig");
 const layout = @import("layout.zig");
+const types = @import("types.zig");
 const window = @import("window.zig");
 
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var gpa = std.heap.DebugAllocator(.{}).init;
 var allocator = gpa.allocator();
 
 var river_window_manager: ?*river.WindowManagerV1 = null;
@@ -39,9 +40,10 @@ pub fn main() !void {
     defer for (layout.output_list.items) |*output|
         for (&output.workspace_list) |*item| item.window_list.deinit(allocator);
     defer keybinding.xkb_binding_list.deinit(allocator);
-    defer std.zon.parse.free(allocator, config.config);
 
     config.loadConfig(allocator);
+    defer std.zon.parse.free(allocator, config.config);
+
     for (config.config.spawn_at_startup) |command| {
         var child = std.process.Child.init(command, allocator);
         child.spawn() catch |err|
@@ -85,8 +87,8 @@ fn windowManagerListener(
 ) void {
     switch (event) {
         .output => |output_event| {
-            const workspace_list = [_]layout.Workspace{.{
-                .window_list = std.ArrayList(window.Window){},
+            const workspace_list = [_]types.Workspace{.{
+                .window_list = std.ArrayList(types.Window){},
                 .focused_window_index = null,
             }} ** 10;
 
