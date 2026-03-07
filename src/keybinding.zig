@@ -92,6 +92,10 @@ fn xkbBindingListener(
                         setup(wm);
                         layout.apply(output, wm.config);
                     },
+                    .exit => {
+                        wm.deinit();
+                        wm.river_window_manager.?.exitSession();
+                    },
                     .close_window => {
                         const idx = workspace.focused_window_idx orelse return;
                         const window = workspace.window_list.items[idx];

@@ -34,8 +34,6 @@
             // "XF86MonBrightnessUp", "XF86MonBrightnessDown",
             // "XF86AudioRaiseVolume", "XF86AudioLowerVolume", "XF86AudioMute", "XF86AudioMicMute"
             .key = "t",
-            // .key = "Return",
-            //
             // modifiers: shift, ctrl, mod1 (alt), mod4 (super)
             .modifiers = .{ .mod4 = true },
             .action = .{ .spawn = .{"alacritty"} },
@@ -65,6 +63,11 @@
             .key = "r",
             .modifiers = .{ .mod4 = true },
             .action = .reload_config,
+        },
+        .{
+            .key = "Delete",
+            .modifiers = .{ .ctrl = true, .mod1 = true },
+            .action = .exit,
         },
 
         .{

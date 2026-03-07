@@ -27,17 +27,15 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super Right` | Focus on the right output |
 | `Super Up` | Focus on the output above |
 | `Super Down` | Focus on the output below |
+| `Ctrl Alt Delete` | Exit River |
 | `Super r` | Reload config |
 | `Super t` | Open alacritty |
 | `XF86AudioRaiseVolume` | Raise volume of PipeWire default audio sink by 5% |
 | `XF86AudioLowerVolume` | Lower volume of PipeWire default audio sink by 5% |
 | `XF86AudioMute` | Toggle mute for PipeWire default audio sink |
 | `XF86AudioMicMute` | Toggle mute for PipeWire default audio source |
-| `Ctrl Alt Delete` | Exit River |
 
 Keybindings for PipeWire require `wpctl` to work.
-
-`Ctrl Alt Delete` is provided by River itself and always works.
 
 ## Dependencies
 * zig 0.15

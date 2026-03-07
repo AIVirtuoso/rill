@@ -5,7 +5,6 @@ const wl = wayland.client.wl;
 
 pub const WindowManager = struct {
     gpa: std.heap.DebugAllocator(.{}) = .init,
-    display: *wl.Display = undefined,
     registry: *wl.Registry = undefined,
     river_window_manager: ?*river.WindowManagerV1 = null,
     river_xkb_bindings: ?*river.XkbBindingsV1 = null,
@@ -28,8 +27,6 @@ pub const WindowManager = struct {
         self.output_list.deinit(allocator);
 
         self.registry.destroy();
-        self.display.disconnect();
-
         _ = self.gpa.deinit();
     }
 };
@@ -117,6 +114,7 @@ pub const Keybinding = struct {
 pub const Action = union(enum) {
     spawn: []const []const u8,
     reload_config: void,
+    exit: void,
     close_window: void,
     focus_window_left: void,
     focus_window_right: void,
@@ -163,6 +161,11 @@ var default_keybindings = [_]Keybinding{
         .key = "r",
         .modifiers = .{ .mod4 = true },
         .action = .reload_config,
+    },
+    .{
+        .key = "Delete",
+        .modifiers = .{ .ctrl = true, .mod1 = true },
+        .action = .exit,
     },
 
     .{

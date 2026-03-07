@@ -15,11 +15,12 @@ var wm: types.WindowManager = .{};
 pub fn main() !void {
     const allocator = wm.gpa.allocator();
 
-    wm.display = try wl.Display.connect(null);
-    wm.registry = try wm.display.getRegistry();
+    const display = try wl.Display.connect(null);
+    defer display.disconnect();
 
+    wm.registry = try display.getRegistry();
     wm.registry.setListener(?*anyopaque, registryListener, null);
-    _ = wm.display.roundtrip();
+    _ = display.roundtrip();
 
     const window_manager = wm.river_window_manager orelse {
         std.debug.print("Failed to find window manager\n", .{});
@@ -35,7 +36,7 @@ pub fn main() !void {
     }
 
     while (true) {
-        const status = wm.display.dispatch();
+        const status = display.dispatch();
         if (@intFromEnum(status) != 0) {
             std.debug.print("Program stopped with status: {}\n", .{status});
             break;
