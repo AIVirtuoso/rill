@@ -56,7 +56,8 @@ pub fn windowListener(
     event: river.WindowV1.Event,
     wm: *types.WindowManager,
 ) void {
-    const output = &wm.output_list.items[wm.focused_output_idx];
+    const output_idx = wm.focused_output_idx orelse return;
+    const output = &wm.output_list.items[output_idx];
 
     if (event == .dimensions and river_window == pending) {
         addWindow(pending.?, output, wm.config, wm.gpa.allocator());

@@ -12,7 +12,7 @@ pub const WindowManager = struct {
     river_seat: ?*river.SeatV1 = null,
     config: Config = .{},
     output_list: std.ArrayList(Output) = .empty,
-    focused_output_idx: usize = 0,
+    focused_output_idx: ?usize = null,
     xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .empty,
 
     pub fn deinit(self: *WindowManager) void {

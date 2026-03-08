@@ -88,6 +88,7 @@ fn windowManagerListener(
                 std.debug.print("Failed to add output: {}\n", .{err});
                 return;
             };
+            wm.focused_output_idx = wm.output_list.items.len - 1;
             output_event.id.setListener(?*anyopaque, outputListener, null);
 
             const layer_shell = wm.river_layer_shell orelse {
@@ -117,11 +118,13 @@ fn windowManagerListener(
             if (wm.config.no_csd) window_event.id.useSsd();
         },
         .manage_start => {
+            const idx = wm.focused_output_idx orelse return;
             const seat = wm.river_seat orelse {
                 std.debug.print("Failed to find seat\n", .{});
                 return;
             };
-            animation.apply(&wm.output_list.items[wm.focused_output_idx], wm.config, seat);
+
+            animation.apply(&wm.output_list.items[idx], wm.config, seat);
             window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),

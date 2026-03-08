@@ -71,15 +71,16 @@ fn xkbBindingListener(
     event: river.XkbBindingV1.Event,
     wm: *types.WindowManager,
 ) void {
+    const output_idx = wm.focused_output_idx orelse return;
+    const output = &wm.output_list.items[output_idx];
+    const workspace = &output.workspace_list[output.focused_workspace_idx];
+    const allocator = wm.gpa.allocator();
+
     for (wm.config.keybindings) |keybinding| {
         if (keybinding.id != xkb_binding.getId()) continue;
 
         switch (event) {
             .pressed => {
-                const output = &wm.output_list.items[wm.focused_output_idx];
-                const workspace = &output.workspace_list[output.focused_workspace_idx];
-                const allocator = wm.gpa.allocator();
-
                 switch (keybinding.action) {
                     .spawn => |command| {
                         var child = std.process.Child.init(command, allocator);
