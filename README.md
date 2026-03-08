@@ -23,6 +23,7 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `Super f` | Toggle fullscreen |
 | `Super 1~0` | Focus on workspace 1~10 |
 | `Super Shift 1~0` | Move window to workspace 1~10 |
+| `` Super ` `` | Focus on previous workspace |
 | `Super Left` | Focus on the left output |
 | `Super Right` | Focus on the right output |
 | `Super Up` | Focus on the output above |

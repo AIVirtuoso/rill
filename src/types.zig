@@ -10,9 +10,10 @@ pub const WindowManager = struct {
     river_xkb_bindings: ?*river.XkbBindingsV1 = null,
     river_layer_shell: ?*river.LayerShellV1 = null,
     river_seat: ?*river.SeatV1 = null,
-    config: Config = .{},
     output_list: std.ArrayList(Output) = .empty,
     focused_output_idx: ?usize = null,
+    previous_workspace: ?struct { output_idx: usize, workspace_idx: usize } = null,
+    config: Config = .{},
     xkb_binding_list: std.ArrayList(*river.XkbBindingV1) = .empty,
 
     pub fn deinit(self: *WindowManager) void {
@@ -124,6 +125,7 @@ pub const Action = union(enum) {
     toggle_fullscreen: void,
     focus_workspace: usize,
     move_window_to_workspace: usize,
+    focus_previous_workspace: void,
     focus_output_left: void,
     focus_output_right: void,
     focus_output_up: void,
@@ -310,6 +312,12 @@ var default_keybindings = [_]Keybinding{
         .key = "0",
         .modifiers = .{ .mod4 = true, .shift = true },
         .action = .{ .move_window_to_workspace = 10 },
+    },
+
+    .{
+        .key = "`",
+        .modifiers = .{ .mod4 = true },
+        .action = .focus_previous_workspace,
     },
 
     .{

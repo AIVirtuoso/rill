@@ -73,7 +73,8 @@ fn xkbBindingListener(
 ) void {
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
-    const workspace = &output.workspace_list[output.focused_workspace_idx];
+    const workspace_idx = output.focused_workspace_idx;
+    const workspace = &output.workspace_list[workspace_idx];
     const allocator = wm.gpa.allocator();
 
     for (wm.config.keybindings) |keybinding| {
@@ -164,13 +165,18 @@ fn xkbBindingListener(
                     },
                     .focus_workspace => |number| {
                         if (number == 0 or number > 10) return;
-                        if (output.focused_workspace_idx == number - 1) return;
+                        if (workspace_idx == number - 1) return;
+
                         output.focused_workspace_idx = number - 1;
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
                         layout.apply(output, wm.config);
                     },
                     .move_window_to_workspace => |number| {
                         if (number == 0 or number > 10) return;
-                        if (output.focused_workspace_idx == number - 1) return;
+                        if (workspace_idx == number - 1) return;
                         const current_idx = workspace.focused_window_idx orelse return;
 
                         if (workspace.window_list.items.len == 1) {
@@ -197,6 +203,21 @@ fn xkbBindingListener(
                         target_workspace.focused_window_idx = target_idx;
                         output.focused_workspace_idx = number - 1;
 
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
+
+                        layout.apply(output, wm.config);
+                    },
+                    .focus_previous_workspace => {
+                        const previous = wm.previous_workspace orelse return;
+                        wm.focused_output_idx = previous.output_idx;
+                        output.focused_workspace_idx = previous.workspace_idx;
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
                         layout.apply(output, wm.config);
                     },
                     .focus_output_left => {
@@ -205,6 +226,10 @@ fn xkbBindingListener(
                                 output.dimensions.x)
                                 wm.focused_output_idx = idx;
                         }
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
                         layout.apply(output, wm.config);
                     },
                     .focus_output_right => {
@@ -213,6 +238,10 @@ fn xkbBindingListener(
                                 output.dimensions.x + output.dimensions.width)
                                 wm.focused_output_idx = idx;
                         }
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
                         layout.apply(output, wm.config);
                     },
                     .focus_output_up => {
@@ -221,6 +250,10 @@ fn xkbBindingListener(
                                 output.dimensions.y)
                                 wm.focused_output_idx = idx;
                         }
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
                         layout.apply(output, wm.config);
                     },
                     .focus_output_down => {
@@ -229,6 +262,10 @@ fn xkbBindingListener(
                                 output.dimensions.y + output.dimensions.height)
                                 wm.focused_output_idx = idx;
                         }
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = workspace_idx,
+                        };
                         layout.apply(output, wm.config);
                     },
                 }

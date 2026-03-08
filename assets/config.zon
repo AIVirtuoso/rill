@@ -217,6 +217,12 @@
         },
 
         .{
+            .key = "`",
+            .modifiers = .{ .mod4 = true },
+            .action = .focus_previous_workspace,
+        },
+
+        .{
             .key = "Left",
             .modifiers = .{ .mod4 = true },
             .action = .focus_output_left,
