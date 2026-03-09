@@ -41,15 +41,15 @@ fn addWindow(
     };
 
     const workspace = &output.workspace_list[output.focused_workspace_idx];
-    var target_idx: usize = 0;
-    if (workspace.focused_window_idx) |idx| target_idx = idx + 1;
+    var window_idx: usize = 0;
+    if (workspace.focused_window_idx) |idx| window_idx = idx + 1;
 
-    workspace.window_list.insert(allocator, target_idx, window) catch |err| {
+    workspace.window_list.insert(allocator, window_idx, window) catch |err| {
         std.debug.print("Failed to add window: {}\n", .{err});
         return;
     };
-    workspace.focused_window_idx = target_idx;
 
+    workspace.focused_window_idx = window_idx;
     layout.apply(output, config);
 }
 
@@ -68,21 +68,21 @@ pub fn windowListener(
     }
 
     for (&output.workspace_list) |*workspace| {
-        const focused_window_idx = workspace.focused_window_idx orelse continue;
+        const window_idx = workspace.focused_window_idx orelse continue;
 
         for (workspace.window_list.items, 0..) |*window, idx| {
             if (window.river_window != river_window) continue;
 
             switch (event) {
                 .closed => {
-                    if (workspace.window_list.items.len == 1) {
-                        workspace.focused_window_idx = null;
-                    } else if (idx <= focused_window_idx and focused_window_idx != 0) {
-                        workspace.focused_window_idx = focused_window_idx - 1;
-                    }
-
                     _ = workspace.window_list.orderedRemove(idx);
                     river_window.destroy();
+
+                    if (workspace.window_list.items.len == 0) {
+                        workspace.focused_window_idx = null;
+                    } else if (idx <= window_idx and window_idx != 0) {
+                        workspace.focused_window_idx = window_idx - 1;
+                    }
                     layout.apply(output, wm.config);
                 },
                 .fullscreen_requested => {
@@ -95,6 +95,7 @@ pub fn windowListener(
                 },
                 else => {},
             }
+
             return;
         }
     }
