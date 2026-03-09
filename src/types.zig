@@ -19,7 +19,8 @@ pub const WindowManager = struct {
     pub fn deinit(self: *WindowManager) void {
         const allocator = self.gpa.allocator();
 
-        std.zon.parse.free(allocator, self.config);
+        if (self.config.is_parsed_from_file)
+            std.zon.parse.free(allocator, self.config);
         self.xkb_binding_list.deinit(allocator);
 
         for (self.output_list.items) |*output|
@@ -78,6 +79,7 @@ pub const Config = struct {
     } = .{},
     spawn_at_startup: []const []const []const u8 = &.{},
     keybindings: []Keybinding = &default_keybindings,
+    is_parsed_from_file: bool = false,
 };
 
 const Color = struct {

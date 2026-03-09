@@ -1,7 +1,4 @@
 const std = @import("std");
-const wayland = @import("wayland");
-const river = wayland.client.river;
-
 const types = @import("types.zig");
 
 fn findConfig(allocator: std.mem.Allocator) ?[]u8 {
@@ -64,10 +61,17 @@ pub fn loadConfig(allocator: std.mem.Allocator) ?types.Config {
     };
     defer allocator.free(content);
 
-    const config = std.zon.parse.fromSlice(types.Config, allocator, content, null, .{}) catch |err| {
+    var config = std.zon.parse.fromSlice(
+        types.Config,
+        allocator,
+        content,
+        null,
+        .{},
+    ) catch |err| {
         std.debug.print("Failed to parse {s}: {}\n", .{ path, err });
         return null;
     };
     std.debug.print("Loaded config file: {s}\n", .{path});
+    config.is_parsed_from_file = true;
     return config;
 }
