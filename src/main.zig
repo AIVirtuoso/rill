@@ -81,7 +81,7 @@ fn windowManagerListener(
                 .river_output = output_event.id,
                 .workspace_list = [_]types.Workspace{.{}} ** 10,
                 .focused_workspace_idx = 0,
-                .dimensions = undefined,
+                .rectangle = undefined,
                 .non_exclusive = null,
             };
             wm.output_list.append(wm.gpa.allocator(), output) catch |err| {
@@ -142,12 +142,12 @@ fn outputListener(
         if (output.river_output != river_output) continue;
         switch (event) {
             .dimensions => |dimensions| {
-                output.dimensions.width = dimensions.width;
-                output.dimensions.height = dimensions.height;
+                output.rectangle.width = dimensions.width;
+                output.rectangle.height = dimensions.height;
             },
             .position => |position| {
-                output.dimensions.x = position.x;
-                output.dimensions.y = position.y;
+                output.rectangle.x = position.x;
+                output.rectangle.y = position.y;
             },
             else => {},
         }

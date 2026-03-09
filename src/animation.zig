@@ -14,18 +14,19 @@ pub fn apply(
     const duration = config.animation_duration;
     if (std.time.milliTimestamp() - start >= duration) start_time = null;
 
-    const progress = @as(f32, @floatFromInt(std.time.milliTimestamp() - start)) /
-        @as(f32, @floatFromInt(duration));
+    const elapsed: f32 = @floatFromInt(std.time.milliTimestamp() - start);
+    const progress = elapsed / @as(f32, @floatFromInt(duration));
     const eased = 1 - std.math.pow(f32, 1 - progress, 3);
 
     for (&output.workspace_list, 0..) |*workspace, workspace_idx| {
         for (workspace.window_list.items, 0..) |*window, window_idx| {
             const target = window.target orelse continue;
+            const current = window.rectangle;
 
-            const width_distance: f32 = @floatFromInt(target.width - window.width);
-            const height_distance: f32 = @floatFromInt(target.height - window.height);
-            const x_distance: f32 = @floatFromInt(target.x - window.x);
-            const y_distance: f32 = @floatFromInt(target.y - window.y);
+            const width_distance: f32 = @floatFromInt(target.width - current.width);
+            const height_distance: f32 = @floatFromInt(target.height - current.height);
+            const x_distance: f32 = @floatFromInt(target.x - current.x);
+            const y_distance: f32 = @floatFromInt(target.y - current.y);
 
             const width_progress: i32 = @intFromFloat(width_distance * eased);
             const height_progress: i32 = @intFromFloat(height_distance * eased);
@@ -34,46 +35,33 @@ pub fn apply(
 
             if (std.time.milliTimestamp() - start < duration) {
                 window.river_window.exitFullscreen();
-                placeWindow(
-                    window,
-                    window.width + width_progress,
-                    window.height + height_progress,
-                    window.x + x_progress,
-                    window.y + y_progress,
-                    output.dimensions,
-                    config.border.width,
-                );
+                const rectangle = types.Rectangle{
+                    .width = current.width + width_progress,
+                    .height = current.height + height_progress,
+                    .x = current.x + x_progress,
+                    .y = current.y + y_progress,
+                };
+                placeWindow(window, rectangle, output.rectangle, config.border.width);
             } else {
-                placeWindow(
-                    window,
-                    target.width,
-                    target.height,
-                    target.x,
-                    target.y,
-                    output.dimensions,
-                    config.border.width,
-                );
+                placeWindow(window, target, output.rectangle, config.border.width);
 
                 if (workspace_idx == output.focused_workspace_idx and
                     window_idx == workspace.focused_window_idx)
                 {
                     seat.focusWindow(window.river_window);
                     window.river_node.placeTop();
-                    if (window.fullscreen)
+                    if (window.is_fullscreen)
                         window.river_window.fullscreen(output.river_output);
                 }
 
-                if (window.fullscreen) {
+                if (window.is_fullscreen) {
                     window.river_window.informFullscreen();
                     window.river_window.setBorders(.{}, 0, 0, 0, 0, 0);
                 } else {
                     window.river_window.informNotFullscreen();
                 }
 
-                window.width = target.width;
-                window.height = target.height;
-                window.x = target.x;
-                window.y = target.y;
+                window.rectangle = target;
                 window.target = null;
             }
         }
@@ -82,55 +70,57 @@ pub fn apply(
 
 fn placeWindow(
     window: *types.Window,
-    width: i32,
-    height: i32,
-    x: i32,
-    y: i32,
-    screen: types.Dimensions,
+    rectangle: types.Rectangle,
+    screen: types.Rectangle,
     border: u8,
 ) void {
     var border_width = border;
-    if (window.fullscreen) border_width = 0;
+    if (window.is_fullscreen) border_width = 0;
 
     window.river_window.proposeDimensions(
-        width - 2 * border_width,
-        height - 2 * border_width,
+        rectangle.width - 2 * border_width,
+        rectangle.height - 2 * border_width,
     );
     window.river_node.setPosition(
-        x + border_width,
-        y + border_width,
+        rectangle.x + border_width,
+        rectangle.y + border_width,
     );
 
-    const left_edge = screen.x;
-    const right_edge = screen.x + screen.width;
-    const top_edge = screen.y;
-    const bottom_edge = screen.y + screen.height;
+    const left = rectangle.x;
+    const right = rectangle.x + rectangle.width;
+    const top = rectangle.y;
+    const bottom = rectangle.y + rectangle.height;
 
-    if (left_edge >= x + width or right_edge <= x or
-        top_edge >= y + height or bottom_edge <= y)
+    const screen_left = screen.x;
+    const screen_right = screen.x + screen.width;
+    const screen_top = screen.y;
+    const screen_bottom = screen.y + screen.height;
+
+    if (screen_left >= right or screen_right <= left or
+        screen_top >= bottom or screen_bottom <= top)
     {
         window.river_window.hide();
     } else {
         window.river_window.show();
     }
 
-    var clip_width = width;
-    var clip_height = height;
+    var clip_width = rectangle.width;
+    var clip_height = rectangle.height;
     var clip_x: i32 = 0;
     var clip_y: i32 = 0;
 
-    if (left_edge < x + width and left_edge > x) {
-        clip_x = left_edge - x;
-        clip_width = @min(x + width - left_edge, screen.width);
-    } else if (right_edge > x and right_edge < x + width) {
-        clip_width = right_edge - x;
+    if (screen_left < right and screen_left > left) {
+        clip_x = screen_left - left;
+        clip_width = @min(right - screen_left, screen.width);
+    } else if (screen_right > left and screen_right < right) {
+        clip_width = screen_right - left;
     }
 
-    if (top_edge < y + height and top_edge > y) {
-        clip_y = top_edge - y;
-        clip_height = y + height - top_edge;
-    } else if (bottom_edge > y and bottom_edge < y + height) {
-        clip_height = bottom_edge - y;
+    if (screen_top < bottom and screen_top > top) {
+        clip_y = screen_top - top;
+        clip_height = bottom - screen_top;
+    } else if (screen_bottom > top and screen_bottom < bottom) {
+        clip_height = screen_bottom - top;
     }
 
     window.river_window.setClipBox(

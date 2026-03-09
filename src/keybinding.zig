@@ -144,9 +144,9 @@ fn xkbBindingListener(
                     .adjust_window_width => |increment| {
                         const idx = workspace.focused_window_idx orelse return;
                         var window = &workspace.window_list.items[idx];
-                        if (window.fullscreen) return;
+                        if (window.is_fullscreen) return;
 
-                        const non_exclusive = output.non_exclusive orelse output.dimensions;
+                        const non_exclusive = output.non_exclusive orelse output.rectangle;
                         const gap = wm.config.horizontal_gap;
                         const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
                         const width_with_gap: i32 =
@@ -160,7 +160,7 @@ fn xkbBindingListener(
                     .toggle_fullscreen => {
                         const idx = workspace.focused_window_idx orelse return;
                         const window = &workspace.window_list.items[idx];
-                        window.fullscreen = !window.fullscreen;
+                        window.is_fullscreen = !window.is_fullscreen;
                         layout.apply(output, wm.config);
                     },
                     .focus_workspace => |number| {
@@ -222,8 +222,8 @@ fn xkbBindingListener(
                     },
                     .focus_output_left => {
                         for (wm.output_list.items, 0..) |item, idx| {
-                            if (item.dimensions.x + item.dimensions.width ==
-                                output.dimensions.x)
+                            if (item.rectangle.x + item.rectangle.width ==
+                                output.rectangle.x)
                                 wm.focused_output_idx = idx;
                         }
                         wm.previous_workspace = .{
@@ -234,8 +234,8 @@ fn xkbBindingListener(
                     },
                     .focus_output_right => {
                         for (wm.output_list.items, 0..) |item, idx| {
-                            if (item.dimensions.x ==
-                                output.dimensions.x + output.dimensions.width)
+                            if (item.rectangle.x ==
+                                output.rectangle.x + output.rectangle.width)
                                 wm.focused_output_idx = idx;
                         }
                         wm.previous_workspace = .{
@@ -246,8 +246,8 @@ fn xkbBindingListener(
                     },
                     .focus_output_up => {
                         for (wm.output_list.items, 0..) |item, idx| {
-                            if (item.dimensions.y + item.dimensions.height ==
-                                output.dimensions.y)
+                            if (item.rectangle.y + item.rectangle.height ==
+                                output.rectangle.y)
                                 wm.focused_output_idx = idx;
                         }
                         wm.previous_workspace = .{
@@ -258,8 +258,8 @@ fn xkbBindingListener(
                     },
                     .focus_output_down => {
                         for (wm.output_list.items, 0..) |item, idx| {
-                            if (item.dimensions.y ==
-                                output.dimensions.y + output.dimensions.height)
+                            if (item.rectangle.y ==
+                                output.rectangle.y + output.rectangle.height)
                                 wm.focused_output_idx = idx;
                         }
                         wm.previous_workspace = .{

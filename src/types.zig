@@ -37,12 +37,9 @@ pub const Window = struct {
     river_window: *river.WindowV1,
     river_node: *river.NodeV1,
     proportion: f32,
-    fullscreen: bool,
-    width: i32,
-    height: i32,
-    x: i32,
-    y: i32,
-    target: ?Dimensions,
+    is_fullscreen: bool,
+    rectangle: Rectangle,
+    target: ?Rectangle,
 };
 
 pub const Workspace = struct {
@@ -54,11 +51,11 @@ pub const Output = struct {
     river_output: *river.OutputV1,
     workspace_list: [10]Workspace,
     focused_workspace_idx: usize,
-    dimensions: Dimensions,
-    non_exclusive: ?Dimensions,
+    rectangle: Rectangle,
+    non_exclusive: ?Rectangle,
 };
 
-pub const Dimensions = struct {
+pub const Rectangle = struct {
     width: i32,
     height: i32,
     x: i32,

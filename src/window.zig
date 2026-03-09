@@ -18,7 +18,7 @@ fn addWindow(
         return;
     };
 
-    const non_exclusive = output.non_exclusive orelse output.dimensions;
+    const non_exclusive = output.non_exclusive orelse output.rectangle;
     const gap = config.horizontal_gap;
     const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
 
@@ -30,11 +30,13 @@ fn addWindow(
         .river_window = river_window,
         .river_node = river_node,
         .proportion = proportion,
-        .fullscreen = false,
-        .width = width_with_gap - gap,
-        .height = height,
-        .x = output.dimensions.x + output.dimensions.width,
-        .y = non_exclusive.y + config.vertical_gap,
+        .is_fullscreen = false,
+        .rectangle = .{
+            .width = width_with_gap - gap,
+            .height = height,
+            .x = output.rectangle.x + output.rectangle.width,
+            .y = non_exclusive.y + config.vertical_gap,
+        },
         .target = null,
     };
 
@@ -84,11 +86,11 @@ pub fn windowListener(
                     layout.apply(output, wm.config);
                 },
                 .fullscreen_requested => {
-                    window.fullscreen = true;
+                    window.is_fullscreen = true;
                     layout.apply(output, wm.config);
                 },
                 .exit_fullscreen_requested => {
-                    window.fullscreen = false;
+                    window.is_fullscreen = false;
                     layout.apply(output, wm.config);
                 },
                 else => {},

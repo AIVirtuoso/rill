@@ -15,20 +15,24 @@ pub fn apply(output: *types.Output, config: types.Config) void {
     const focused_color = config.border.focused_color.toRiverColor();
     const unfocused_color = config.border.unfocused_color.toRiverColor();
 
-    const non_exclusive = output.non_exclusive orelse output.dimensions;
-
-    const horizontal_gap = config.horizontal_gap;
-    const base_width: f32 = @floatFromInt(non_exclusive.width - horizontal_gap);
-
-    const vertical_gap = config.vertical_gap;
-    var height = non_exclusive.height - 2 * vertical_gap;
+    const non_exclusive = output.non_exclusive orelse output.rectangle;
+    const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
 
     for (&output.workspace_list, 0..) |*workspace, workspace_idx| {
         const focused_window_idx = workspace.focused_window_idx orelse continue;
         const focused_window = &workspace.window_list.items[focused_window_idx];
 
         var width_with_gap: i32 = @intFromFloat(base_width * focused_window.proportion);
-        var width = width_with_gap - horizontal_gap;
+        const workspace_offset = @as(i32, @intCast(workspace_idx)) -
+            @as(i32, @intCast(output.focused_workspace_idx));
+        const y_offset = workspace_offset * output.rectangle.height;
+
+        var rectangle = types.Rectangle{
+            .width = width_with_gap - config.horizontal_gap,
+            .height = non_exclusive.height - 2 * config.vertical_gap,
+            .x = focused_window.rectangle.x,
+            .y = non_exclusive.y + y_offset + config.vertical_gap,
+        };
 
         const should_center = switch (config.center_focused_window) {
             .never => false,
@@ -36,28 +40,21 @@ pub fn apply(output: *types.Output, config: types.Config) void {
             .single => workspace.window_list.items.len == 1,
         };
 
-        var x = focused_window.x;
         if (should_center) {
-            x = non_exclusive.x + @divTrunc(non_exclusive.width, 2) - @divTrunc(width, 2);
-        } else if (focused_window.x < non_exclusive.x + horizontal_gap) {
-            x = non_exclusive.x + horizontal_gap;
-        } else if (focused_window.x + width_with_gap > non_exclusive.x + non_exclusive.width) {
-            x = @max(
+            rectangle.x = non_exclusive.x +
+                @divTrunc(non_exclusive.width, 2) - @divTrunc(rectangle.width, 2);
+        } else if (rectangle.x < non_exclusive.x + config.horizontal_gap) {
+            rectangle.x = non_exclusive.x + config.horizontal_gap;
+        } else if (rectangle.x + width_with_gap > non_exclusive.x + non_exclusive.width) {
+            rectangle.x = @max(
                 non_exclusive.x + non_exclusive.width - width_with_gap,
-                non_exclusive.x + horizontal_gap,
+                non_exclusive.x + config.horizontal_gap,
             );
         }
 
-        const workspace_offset = @as(i32, @intCast(workspace_idx)) -
-            @as(i32, @intCast(output.focused_workspace_idx));
-        const y_offset = workspace_offset * output.dimensions.height;
-        var y = non_exclusive.y + y_offset + vertical_gap;
-
-        if (focused_window.fullscreen) {
-            width = output.dimensions.width;
-            height = output.dimensions.height;
-            x = output.dimensions.x;
-            y = output.dimensions.y + y_offset;
+        if (focused_window.is_fullscreen) {
+            rectangle = output.rectangle;
+            rectangle.y += y_offset;
         } else {
             focused_window.river_window.setBorders(
                 edges,
@@ -69,19 +66,14 @@ pub fn apply(output: *types.Output, config: types.Config) void {
             );
         }
 
-        focused_window.target = .{
-            .width = width,
-            .height = height,
-            .x = x,
-            .y = y,
-        };
+        focused_window.target = rectangle;
+        rectangle.x += rectangle.width + config.horizontal_gap;
 
-        x += width + horizontal_gap;
         for (workspace.window_list.items[focused_window_idx + 1 ..]) |*window| {
-            if (window.fullscreen) {
-                width = output.dimensions.width;
-                height = output.dimensions.height;
-                y = output.dimensions.y + y_offset;
+            if (window.is_fullscreen) {
+                rectangle.width = output.rectangle.width;
+                rectangle.height = output.rectangle.height;
+                rectangle.y = output.rectangle.y + y_offset;
             } else {
                 window.river_window.setBorders(
                     edges,
@@ -93,30 +85,25 @@ pub fn apply(output: *types.Output, config: types.Config) void {
                 );
 
                 width_with_gap = @intFromFloat(base_width * window.proportion);
-                width = width_with_gap - horizontal_gap;
-                height = non_exclusive.height - 2 * vertical_gap;
-                y = non_exclusive.y + y_offset + vertical_gap;
+                rectangle.width = width_with_gap - config.horizontal_gap;
+                rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
+                rectangle.y = non_exclusive.y + y_offset + config.vertical_gap;
             }
 
-            window.target = .{
-                .width = width,
-                .height = height,
-                .x = x,
-                .y = y,
-            };
-            x += width + horizontal_gap;
+            window.target = rectangle;
+            rectangle.x += rectangle.width + config.horizontal_gap;
         }
 
-        x = focused_window.target.?.x;
+        rectangle.x = focused_window.target.?.x;
         var window_idx = focused_window_idx;
         while (window_idx > 0) {
             window_idx -= 1;
             const window = &workspace.window_list.items[window_idx];
 
-            if (window.fullscreen) {
-                width = output.dimensions.width;
-                height = output.dimensions.height;
-                y = output.dimensions.y + y_offset;
+            if (window.is_fullscreen) {
+                rectangle.width = output.rectangle.width;
+                rectangle.height = output.rectangle.height;
+                rectangle.y = output.rectangle.y + y_offset;
             } else {
                 window.river_window.setBorders(
                     edges,
@@ -128,24 +115,19 @@ pub fn apply(output: *types.Output, config: types.Config) void {
                 );
 
                 width_with_gap = @intFromFloat(base_width * window.proportion);
-                width = width_with_gap - horizontal_gap;
-                height = non_exclusive.height - 2 * vertical_gap;
-                y = non_exclusive.y + y_offset + vertical_gap;
+                rectangle.width = width_with_gap - config.horizontal_gap;
+                rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
+                rectangle.y = non_exclusive.y + y_offset + config.vertical_gap;
             }
 
-            x -= horizontal_gap + width;
-            window.target = .{
-                .width = width,
-                .height = height,
-                .x = x,
-                .y = y,
-            };
+            rectangle.x -= config.horizontal_gap + rectangle.width;
+            window.target = rectangle;
         }
 
         if (!should_center) snapToEdge(
             workspace.window_list.items,
             non_exclusive,
-            horizontal_gap,
+            config.horizontal_gap,
         );
     }
     animation.start_time = std.time.milliTimestamp();
@@ -153,20 +135,20 @@ pub fn apply(output: *types.Output, config: types.Config) void {
 
 fn snapToEdge(
     window_list: []types.Window,
-    non_exclusive: types.Dimensions,
+    non_exclusive: types.Rectangle,
     gap: i32,
 ) void {
     var head_distance: ?i32 = null;
     const head = window_list[0].target.?.x;
-    const left_edge = non_exclusive.x + gap;
-    if (head > left_edge) head_distance = head - left_edge;
+    const screen_left = non_exclusive.x + gap;
+    if (head > screen_left) head_distance = head - screen_left;
 
     var tail_distance: ?i32 = null;
     const tail_window = window_list[window_list.len - 1];
     const tail = tail_window.target.?.x + tail_window.target.?.width;
-    const right_edge = non_exclusive.x + non_exclusive.width - gap;
-    if (tail < right_edge)
-        tail_distance = @min(right_edge - tail, left_edge - head);
+    const screen_right = non_exclusive.x + non_exclusive.width - gap;
+    if (tail < screen_right)
+        tail_distance = @min(screen_right - tail, screen_left - head);
 
     for (window_list) |*window| {
         const x = &window.target.?.x;
