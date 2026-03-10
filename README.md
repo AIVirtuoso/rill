@@ -1,11 +1,11 @@
 # Rill
-A minimalist scrolling window manager implementing the [river](https://codeberg.org/river/river)-window-management-v1 protocol, written in Zig
+A minimalist scrolling window manager for [river](https://isaacfreund.com/software/river/), implementing the [river-window-management-v1](https://isaacfreund.com/docs/wayland/river-window-management-v1/) protocol
 
 ## Features
 * Scrolling layout
 * Workspaces
-* Animation
-* Config with live reloading
+* Animations
+* Live-reloading config
 
 <video src="https://codeberg.org/lzj15/rill/raw/branch/main/assets/recording.mp4" controls>
 </video>
@@ -36,23 +36,22 @@ A minimalist scrolling window manager implementing the [river](https://codeberg.
 | `XF86AudioMute` | Toggle mute for PipeWire default audio sink |
 | `XF86AudioMicMute` | Toggle mute for PipeWire default audio source |
 
-Keybindings for PipeWire require `wpctl` to work.
-
 ## Dependencies
 * zig 0.15
-* river 0.4.x (supporting river-window-management-v1 protocol)
+* river 0.4
 * wayland
 * wayland-protocols
 
 ## Build
 ```bash
-git clone https://codeberg.org/lzj15/rill.git
-cd rill
 zig build --release=safe
 ```
 
 ## Usage
-Add `rill` to the river init file, or directly run `river -c rill`.
+Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or directly run `river -c rill`.
 
 ## Configuration
-Rill is configured with a ZON file at `$XDG_CONFIG_HOME/rill/config.zon`, fallback to `$HOME/.config/rill/config.zon`. See [default config](https://codeberg.org/lzj15/rill/src/branch/main/assets/config.zon) as an example.
+Rill searches for a config file at the following locations in order:  
+`$XDG_CONFIG_HOME/rill/config.zon`  
+`$HOME/.config/rill/config.zon`  
+See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/assets/config.zon) as an example.
