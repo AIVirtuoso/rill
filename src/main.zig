@@ -108,6 +108,7 @@ fn windowManagerListener(
         },
         .seat => |seat_event| {
             wm.river_seat = seat_event.id;
+            seat_event.id.setListener(?*anyopaque, seatListener, null);
             keybinding.setup(&wm);
         },
         .window => |window_event| {
@@ -172,5 +173,39 @@ fn layerShellOutputListener(
                 if (idx == wm.focused_output_idx) layout.apply(output, wm.config);
             },
         }
+    }
+}
+
+fn seatListener(
+    _: *river.SeatV1,
+    event: river.SeatV1.Event,
+    _: ?*anyopaque,
+) void {
+    switch (event) {
+        .window_interaction => |interaction| {
+            const output_idx = wm.focused_output_idx orelse return;
+            const output = &wm.output_list.items[output_idx];
+
+            for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
+                const workspace =
+                    &target_output.workspace_list[target_output.focused_workspace_idx];
+
+                for (workspace.window_list.items, 0..) |item, window_idx| {
+                    if (item.river_window != interaction.window) continue;
+
+                    workspace.focused_window_idx = window_idx;
+                    wm.focused_output_idx = target_output_idx;
+                    if (target_output_idx != output_idx)
+                        wm.previous_workspace = .{
+                            .output_idx = output_idx,
+                            .workspace_idx = output.focused_workspace_idx,
+                        };
+                    layout.apply(target_output, wm.config);
+
+                    return;
+                }
+            }
+        },
+        else => {},
     }
 }
