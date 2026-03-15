@@ -28,7 +28,7 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 | `Super` `Right` | Focus on the right output |
 | `Super` `Up` | Focus on the output above |
 | `Super` `Down` | Focus on the output below |
-| `Ctrl` `Alt` `Delete` | Exit river |
+| `Super` `Escape` | Exit river |
 | `Super` `r` | Reload config |
 | `Super` `t` | Open alacritty |
 | `XF86AudioRaiseVolume` | Raise volume of PipeWire default audio sink by 5% |

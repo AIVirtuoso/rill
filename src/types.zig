@@ -164,8 +164,8 @@ var default_keybindings = [_]Keybinding{
         .action = .reload_config,
     },
     .{
-        .key = "Delete",
-        .modifiers = .{ .ctrl = true, .mod1 = true },
+        .key = "Escape",
+        .modifiers = .{ .mod4 = true },
         .action = .exit,
     },
 
