@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .wayland = .{
-            .url = "https://codeberg.org/ifreund/zig-wayland/archive/main.tar.gz",
-            .hash = "wayland-0.5.0-dev-lQa1koD8AQCf7FkMA2igOPWNNes4TTqzqrl_NqHLGHi3",
+            .url = "https://codeberg.org/ifreund/zig-wayland/archive/v0.5.0.zip",
+            .hash = "wayland-0.5.0-lQa1knz8AQCh08NA8BeQrwJB9U3CfqcVAdHZYGRKIGuu",
         },
     },
     .paths = .{
