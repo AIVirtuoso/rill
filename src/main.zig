@@ -41,7 +41,7 @@ pub fn main() !void {
             std.debug.print("Program stopped with status: {}\n", .{status});
             break;
         }
-        if (animation.start_time) |_| window_manager.manageDirty();
+        if (animation.begin_time) |_| window_manager.manageDirty();
     }
 
     wm.deinit();

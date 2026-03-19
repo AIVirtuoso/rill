@@ -66,7 +66,8 @@ pub fn apply(output: *types.Output, config: types.Config) void {
             );
         }
 
-        focused_window.target = rectangle;
+        focused_window.start = focused_window.rectangle;
+        focused_window.finish = rectangle;
         rectangle.x += rectangle.width + config.horizontal_gap;
 
         for (workspace.window_list.items[focused_window_idx + 1 ..]) |*window| {
@@ -90,11 +91,12 @@ pub fn apply(output: *types.Output, config: types.Config) void {
                 rectangle.y = non_exclusive.y + y_offset + config.vertical_gap;
             }
 
-            window.target = rectangle;
+            window.start = window.rectangle;
+            window.finish = rectangle;
             rectangle.x += rectangle.width + config.horizontal_gap;
         }
 
-        rectangle.x = focused_window.target.?.x;
+        rectangle.x = focused_window.finish.?.x;
         var window_idx = focused_window_idx;
         while (window_idx > 0) {
             window_idx -= 1;
@@ -121,7 +123,8 @@ pub fn apply(output: *types.Output, config: types.Config) void {
             }
 
             rectangle.x -= config.horizontal_gap + rectangle.width;
-            window.target = rectangle;
+            window.start = window.rectangle;
+            window.finish = rectangle;
         }
 
         if (!should_center) snapToEdge(
@@ -130,7 +133,7 @@ pub fn apply(output: *types.Output, config: types.Config) void {
             config.horizontal_gap,
         );
     }
-    animation.start_time = std.time.milliTimestamp();
+    animation.begin_time = std.time.milliTimestamp();
 }
 
 fn snapToEdge(
@@ -139,19 +142,19 @@ fn snapToEdge(
     gap: i32,
 ) void {
     var head_distance: ?i32 = null;
-    const head = window_list[0].target.?.x;
+    const head = window_list[0].finish.?.x;
     const screen_left = non_exclusive.x + gap;
     if (head > screen_left) head_distance = head - screen_left;
 
     var tail_distance: ?i32 = null;
     const tail_window = window_list[window_list.len - 1];
-    const tail = tail_window.target.?.x + tail_window.target.?.width;
+    const tail = tail_window.finish.?.x + tail_window.finish.?.width;
     const screen_right = non_exclusive.x + non_exclusive.width - gap;
     if (tail < screen_right)
         tail_distance = @min(screen_right - tail, screen_left - head);
 
     for (window_list) |*window| {
-        const x = &window.target.?.x;
+        const x = &window.finish.?.x;
         if (head_distance) |distance| {
             x.* -= distance;
         } else if (tail_distance) |distance| {

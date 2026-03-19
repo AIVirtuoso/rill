@@ -37,7 +37,8 @@ fn addWindow(
             .x = output.rectangle.x + output.rectangle.width,
             .y = non_exclusive.y + config.vertical_gap,
         },
-        .target = null,
+        .start = null,
+        .finish = null,
     };
 
     const workspace = &output.workspace_list[output.focused_workspace_idx];
@@ -95,7 +96,6 @@ pub fn windowListener(
                 },
                 else => {},
             }
-
             return;
         }
     }

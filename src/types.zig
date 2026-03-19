@@ -39,7 +39,8 @@ pub const Window = struct {
     proportion: f32,
     is_fullscreen: bool,
     rectangle: Rectangle,
-    target: ?Rectangle,
+    start: ?Rectangle,
+    finish: ?Rectangle,
 };
 
 pub const Workspace = struct {
@@ -140,7 +141,7 @@ var default_keybindings = [_]Keybinding{
     .{
         .key = "XF86AudioRaiseVolume",
         .modifiers = .{},
-        .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-volume", "--limit", "1.0", "@DEFAULT_AUDIO_SINK@", "0.05+" } },
+        .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05+", "--limit", "1.0" } },
     },
     .{
         .key = "XF86AudioLowerVolume",
