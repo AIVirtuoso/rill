@@ -7,8 +7,7 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 * Animations
 * Live-reloading config
 
-<video src="https://codeberg.org/lzj15/rill/raw/branch/main/assets/recording.mp4" controls>
-</video>
+<video src="https://pub-da8894d425e3482384b5adec2dcc2361.r2.dev/recording.mp4" controls> </video>
 
 ## Default Keybindings
 | Keybinding | Action |
@@ -54,4 +53,4 @@ Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or di
 Rill searches for a config file at the following locations in order:  
 `$XDG_CONFIG_HOME/rill/config.zon`  
 `$HOME/.config/rill/config.zon`  
-See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/assets/config.zon) as an example.
+See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.zon) as an example.

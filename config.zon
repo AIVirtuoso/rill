@@ -41,7 +41,7 @@
         .{
             .key = "XF86AudioRaiseVolume",
             .modifiers = .{},
-            .action = .{ .spawn = .{ "wpctl", "set-volume", "--limit", "1.0", "@DEFAULT_AUDIO_SINK@", "0.05+" } },
+            .action = .{ .spawn = .{ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05+", "--limit", "1.0" } },
         },
         .{
             .key = "XF86AudioLowerVolume",
