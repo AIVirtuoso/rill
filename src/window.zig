@@ -12,11 +12,8 @@ fn addWindow(
     output: *types.Output,
     config: types.Config,
     allocator: std.mem.Allocator,
-) void {
-    const river_node = river_window.getNode() catch |err| {
-        std.debug.print("Failed to get window's node: {}\n", .{err});
-        return;
-    };
+) !void {
+    const river_node = try river_window.getNode();
 
     const non_exclusive = output.non_exclusive orelse output.rectangle;
     const gap = config.horizontal_gap;
@@ -44,11 +41,7 @@ fn addWindow(
     const workspace = &output.workspace_list[output.focused_workspace_idx];
     var window_idx: usize = 0;
     if (workspace.focused_window_idx) |idx| window_idx = idx + 1;
-
-    workspace.window_list.insert(allocator, window_idx, window) catch |err| {
-        std.debug.print("Failed to add window: {}\n", .{err});
-        return;
-    };
+    try workspace.window_list.insert(allocator, window_idx, window);
 
     workspace.focused_window_idx = window_idx;
     layout.apply(output, config);
@@ -63,7 +56,10 @@ pub fn windowListener(
     const output = &wm.output_list.items[output_idx];
 
     if (event == .dimensions and river_window == pending) {
-        addWindow(pending.?, output, wm.config, wm.gpa.allocator());
+        addWindow(pending.?, output, wm.config, wm.gpa.allocator()) catch |err| {
+            std.debug.print("Failed to add window: {}\n", .{err});
+            return;
+        };
         pending = null;
         return;
     }

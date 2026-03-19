@@ -95,8 +95,7 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                 std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
         },
         .reload_config => {
-            if (config.loadConfig(allocator)) |loaded_config|
-                wm.config = loaded_config;
+            if (config.load(allocator)) |loaded_config| wm.config = loaded_config;
             setup(wm);
             layout.apply(output, wm.config);
         },
@@ -235,7 +234,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     .output_idx = output_idx,
                     .workspace_idx = workspace_idx,
                 };
-
                 return;
             }
         },
@@ -249,7 +247,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     .output_idx = output_idx,
                     .workspace_idx = workspace_idx,
                 };
-
                 return;
             }
         },
@@ -263,7 +260,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     .output_idx = output_idx,
                     .workspace_idx = workspace_idx,
                 };
-
                 return;
             }
         },
@@ -277,7 +273,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     .output_idx = output_idx,
                     .workspace_idx = workspace_idx,
                 };
-
                 return;
             }
         },
