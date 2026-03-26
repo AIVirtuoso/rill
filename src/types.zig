@@ -113,9 +113,6 @@ pub const Keybinding = struct {
 };
 
 pub const Action = union(enum) {
-    spawn: []const []const u8,
-    reload_config: void,
-    exit: void,
     close_window: void,
     focus_window_left: void,
     focus_window_right: void,
@@ -130,6 +127,9 @@ pub const Action = union(enum) {
     focus_output_right: void,
     focus_output_up: void,
     focus_output_down: void,
+    exit: void,
+    reload_config: void,
+    spawn: []const []const u8,
 };
 
 var default_keybindings = [_]Keybinding{

@@ -89,20 +89,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
     const allocator = wm.gpa.allocator();
 
     switch (action) {
-        .spawn => |command| {
-            var child = std.process.Child.init(command, allocator);
-            child.spawn() catch |err|
-                std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
-        },
-        .reload_config => {
-            if (config.load(allocator)) |loaded_config| wm.config = loaded_config;
-            setup(wm);
-            layout.apply(output, wm.config);
-        },
-        .exit => {
-            wm.deinit();
-            wm.river_window_manager.?.exitSession();
-        },
         .close_window => {
             const window_idx = workspace.focused_window_idx orelse return;
             const window = workspace.window_list.items[window_idx];
@@ -276,5 +262,32 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                 return;
             }
         },
+        .exit => {
+            wm.deinit();
+            wm.river_window_manager.?.exitSession();
+        },
+        .reload_config => {
+            if (config.load(allocator)) |loaded_config| wm.config = loaded_config;
+            setup(wm);
+            layout.apply(output, wm.config);
+        },
+        .spawn => |command| spawn(command, allocator) catch |err|
+            std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err }),
     }
+}
+
+fn spawn(command: []const []const u8, allocator: std.mem.Allocator) !void {
+    const child = try allocator.create(std.process.Child);
+    errdefer allocator.destroy(child);
+
+    child.* = std.process.Child.init(command, allocator);
+    try child.spawn();
+
+    const thread = try std.Thread.spawn(.{}, wait, .{ child, allocator });
+    thread.detach();
+}
+
+fn wait(child: *std.process.Child, allocator: std.mem.Allocator) void {
+    _ = child.wait() catch {};
+    allocator.destroy(child);
 }

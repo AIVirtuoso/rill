@@ -23,24 +23,25 @@ pub fn apply(
             const start = window.start orelse continue;
             const finish = window.finish orelse continue;
 
-            const width_distance: f32 = @floatFromInt(finish.width - start.width);
-            const height_distance: f32 = @floatFromInt(finish.height - start.height);
-            const x_distance: f32 = @floatFromInt(finish.x - start.x);
-            const y_distance: f32 = @floatFromInt(finish.y - start.y);
-
-            const width_progress: i32 = @intFromFloat(width_distance * eased);
-            const height_progress: i32 = @intFromFloat(height_distance * eased);
-            const x_progress: i32 = @intFromFloat(x_distance * eased);
-            const y_progress: i32 = @intFromFloat(y_distance * eased);
-
             if (std.time.milliTimestamp() - begin < duration) {
-                window.river_window.exitFullscreen();
+                const width_distance: f32 = @floatFromInt(finish.width - start.width);
+                const height_distance: f32 = @floatFromInt(finish.height - start.height);
+                const x_distance: f32 = @floatFromInt(finish.x - start.x);
+                const y_distance: f32 = @floatFromInt(finish.y - start.y);
+
+                const width_progress: i32 = @intFromFloat(width_distance * eased);
+                const height_progress: i32 = @intFromFloat(height_distance * eased);
+                const x_progress: i32 = @intFromFloat(x_distance * eased);
+                const y_progress: i32 = @intFromFloat(y_distance * eased);
+
                 window.rectangle = .{
                     .width = start.width + width_progress,
                     .height = start.height + height_progress,
                     .x = start.x + x_progress,
                     .y = start.y + y_progress,
                 };
+
+                window.river_window.exitFullscreen();
                 placeWindow(window, output.rectangle, config.border.width);
             } else {
                 window.rectangle = finish;
