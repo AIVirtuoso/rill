@@ -139,7 +139,7 @@ fn outputListener(
     event: river.OutputV1.Event,
     _: ?*anyopaque,
 ) void {
-    for (wm.output_list.items) |*output| {
+    for (wm.output_list.items, 0..) |*output, idx| {
         if (output.river_output != river_output) continue;
         switch (event) {
             .dimensions => |dimensions| {
@@ -149,6 +149,11 @@ fn outputListener(
             .position => |position| {
                 output.rectangle.x = position.x;
                 output.rectangle.y = position.y;
+            },
+            .removed => {
+                for (&output.workspace_list) |*workspace|
+                    workspace.window_list.deinit(wm.gpa.allocator());
+                _ = wm.output_list.swapRemove(idx);
             },
             else => {},
         }
