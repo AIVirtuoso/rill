@@ -9,6 +9,19 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 
 <video src="https://pub-da8894d425e3482384b5adec2dcc2361.r2.dev/recording.mp4" controls> </video>
 
+## Installation
+You can download pre-built binary from [releases](https://codeberg.org/lzj15/rill/releases).
+
+## Usage
+[River](https://isaacfreund.com/software/river/) needs to be installed first.  
+Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or directly run `river -c rill`.
+
+## Configuration
+Rill searches for a config file at the following locations in order:  
+`$XDG_CONFIG_HOME/rill/config.zon`  
+`$HOME/.config/rill/config.zon`  
+See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.zon) as an example.
+
 ## Default Keybindings
 | Keybinding | Action |
 |----------|--------|
@@ -39,22 +52,11 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 | `XF86AudioMute` | Toggle mute for PipeWire default audio sink |
 | `XF86AudioMicMute` | Toggle mute for PipeWire default audio source |
 
-## Dependencies
+## Build
+### Dependencies
 * zig 0.15
-* river
 * wayland
 * wayland-protocols
-
-## Build
 ```sh
 zig build --release=safe
 ```
-
-## Usage
-Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or directly run `river -c rill`.
-
-## Configuration
-Rill searches for a config file at the following locations in order:  
-`$XDG_CONFIG_HOME/rill/config.zon`  
-`$HOME/.config/rill/config.zon`  
-See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.zon) as an example.
