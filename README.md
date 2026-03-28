@@ -13,20 +13,24 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 | Keybinding | Action |
 |----------|--------|
 | `Super` `q` | Close window |
-| `Super` `h` | Focus on the left window |
-| `Super` `l` | Focus on the right window |
-| `Super` `Shift` `h` | Move window to the left |
-| `Super` `Shift` `l` | Move window to the right |
+| `Super` `f` | Toggle fullscreen |
 | `Super` `-` | Decrease window's width by a proportion of 0.1 |
 | `Super` `=` | Increase window's width by a proportion of 0.1 |
-| `Super` `f` | Toggle fullscreen |
-| `Super` `1~0` | Focus on workspace 1~10 |
-| `Super` `Shift` `1~0` | Move window to workspace 1~10 |
+| `Super` `Left` | Focus on the left window |
+| `Super` `Right` | Focus on the right window |
+| `Super` `Shift` `Left` | Move window to the left |
+| `Super` `Shift` `Right` | Move window to the right |
+| `Super` `Up` | Focus on the workspace above |
+| `Super` `Down` | Focus on the workspace below |
 | `Super` `` ` `` | Focus on previous workspace |
-| `Super` `Left` | Focus on the left output |
-| `Super` `Right` | Focus on the right output |
-| `Super` `Up` | Focus on the output above |
-| `Super` `Down` | Focus on the output below |
+| `Super` `1~0` | Focus on workspace 1~10 |
+| `Super` `Shift` `Up` | Move window to the workspace above |
+| `Super` `Shift` `Down` | Move window to the workspace below |
+| `Super` `Shift` `1~0` | Move window to workspace 1~10 |
+| `Super` `h` | Focus on the left output |
+| `Super` `l` | Focus on the right output |
+| `Super` `k` | Focus on the output above |
+| `Super` `j` | Focus on the output below |
 | `Super` `Escape` | Exit river |
 | `Super` `r` | Reload config |
 | `Super` `t` | Open alacritty |

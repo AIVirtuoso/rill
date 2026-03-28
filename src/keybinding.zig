@@ -6,33 +6,6 @@ const config = @import("config.zig");
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
-const SpecialKeyMap = std.StaticStringMap(u32).initComptime(.{
-    .{ "Left", 0xFF51 },
-    .{ "Up", 0xFF52 },
-    .{ "Right", 0xFF53 },
-    .{ "Down", 0xFF54 },
-
-    .{ "BackSpace", 0xFF08 },
-    .{ "Tab", 0xFF09 },
-    .{ "Return", 0xFF0D },
-    .{ "Escape", 0xFF1B },
-    .{ "Delete", 0xFFFF },
-
-    .{ "XF86MonBrightnessUp", 0x1008FF02 },
-    .{ "XF86MonBrightnessDown", 0x1008FF03 },
-
-    .{ "XF86AudioLowerVolume", 0x1008FF11 },
-    .{ "XF86AudioMute", 0x1008FF12 },
-    .{ "XF86AudioRaiseVolume", 0x1008FF13 },
-    .{ "XF86AudioMicMute", 0x1008FFB2 },
-});
-
-fn parseKey(key: []const u8) ?u32 {
-    if (SpecialKeyMap.get(key)) |keysym| return keysym;
-    if (key.len == 1) return @as(u32, key[0]);
-    return null;
-}
-
 pub fn setup(wm: *types.WindowManager) void {
     const xkb_bindings = wm.river_xkb_bindings orelse {
         std.debug.print("Failed to find xkb bindings\n", .{});
@@ -66,6 +39,33 @@ pub fn setup(wm: *types.WindowManager) void {
     }
 }
 
+const SpecialKeyMap = std.StaticStringMap(u32).initComptime(.{
+    .{ "Left", 0xFF51 },
+    .{ "Up", 0xFF52 },
+    .{ "Right", 0xFF53 },
+    .{ "Down", 0xFF54 },
+
+    .{ "BackSpace", 0xFF08 },
+    .{ "Tab", 0xFF09 },
+    .{ "Return", 0xFF0D },
+    .{ "Escape", 0xFF1B },
+    .{ "Delete", 0xFFFF },
+
+    .{ "XF86MonBrightnessUp", 0x1008FF02 },
+    .{ "XF86MonBrightnessDown", 0x1008FF03 },
+
+    .{ "XF86AudioLowerVolume", 0x1008FF11 },
+    .{ "XF86AudioMute", 0x1008FF12 },
+    .{ "XF86AudioRaiseVolume", 0x1008FF13 },
+    .{ "XF86AudioMicMute", 0x1008FFB2 },
+});
+
+fn parseKey(key: []const u8) ?u32 {
+    if (SpecialKeyMap.get(key)) |keysym| return keysym;
+    if (key.len == 1) return @as(u32, key[0]);
+    return null;
+}
+
 fn xkbBindingListener(
     xkb_binding: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,
@@ -93,6 +93,27 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             const window_idx = workspace.focused_window_idx orelse return;
             const window = workspace.window_list.items[window_idx];
             window.river_window.close();
+        },
+        .toggle_fullscreen => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            const window = &workspace.window_list.items[window_idx];
+            window.is_fullscreen = !window.is_fullscreen;
+            layout.apply(output, wm.config);
+        },
+        .adjust_window_width => |increment| {
+            const window_idx = workspace.focused_window_idx orelse return;
+            var window = &workspace.window_list.items[window_idx];
+            if (window.is_fullscreen) return;
+
+            const non_exclusive = output.non_exclusive orelse output.rectangle;
+            const gap = wm.config.horizontal_gap;
+            const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
+            const width_with_gap: i32 =
+                @intFromFloat(base_width * (window.proportion + increment));
+            if (width_with_gap - gap < 2 * wm.config.border.width) return;
+
+            window.proportion += increment;
+            layout.apply(output, wm.config);
         },
         .focus_window_left => {
             const window_idx = workspace.focused_window_idx orelse return;
@@ -132,82 +153,92 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             workspace.focused_window_idx = window_idx + 1;
             layout.apply(output, wm.config);
         },
-        .adjust_window_width => |increment| {
-            const window_idx = workspace.focused_window_idx orelse return;
-            var window = &workspace.window_list.items[window_idx];
-            if (window.is_fullscreen) return;
-
-            const non_exclusive = output.non_exclusive orelse output.rectangle;
-            const gap = wm.config.horizontal_gap;
-            const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
-            const width_with_gap: i32 =
-                @intFromFloat(base_width * (window.proportion + increment));
-            if (width_with_gap - gap < 2 * wm.config.border.width) return;
-
-            window.proportion += increment;
-            layout.apply(output, wm.config);
-        },
-        .toggle_fullscreen => {
-            const window_idx = workspace.focused_window_idx orelse return;
-            const window = &workspace.window_list.items[window_idx];
-            window.is_fullscreen = !window.is_fullscreen;
-            layout.apply(output, wm.config);
-        },
-        .focus_workspace => |number| {
-            if (number == 0 or number > 10) return;
-            if (workspace_idx == number - 1) return;
-
-            output.focused_workspace_idx = number - 1;
+        .focus_workspace_above => {
+            if (workspace_idx == 0) return;
+            output.focused_workspace_idx -= 1;
             wm.previous_workspace = .{
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
             };
             layout.apply(output, wm.config);
         },
-        .move_window_to_workspace => |number| {
-            if (number == 0 or number > 10) return;
-            if (workspace_idx == number - 1) return;
-            const window_idx = workspace.focused_window_idx orelse return;
-
-            const window = workspace.window_list.orderedRemove(window_idx);
-
-            if (workspace.window_list.items.len == 0) {
-                workspace.focused_window_idx = null;
-            } else if (window_idx != 0) {
-                workspace.focused_window_idx = window_idx - 1;
-            }
-
-            const target_workspace = &output.workspace_list[number - 1];
-            var target_window_idx: usize = 0;
-            if (target_workspace.focused_window_idx) |idx| target_window_idx = idx + 1;
-
-            target_workspace.window_list.insert(
-                allocator,
-                target_window_idx,
-                window,
-            ) catch |err| {
-                std.debug.print("Failed to add window: {}\n", .{err});
-                return;
-            };
-
-            target_workspace.focused_window_idx = target_window_idx;
-            output.focused_workspace_idx = number - 1;
+        .focus_workspace_below => {
+            if (workspace_idx == 9) return;
+            output.focused_workspace_idx += 1;
             wm.previous_workspace = .{
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
             };
-
             layout.apply(output, wm.config);
         },
-        .focus_previous_workspace => {
+        .focus_workspace_previous => {
             const previous = wm.previous_workspace orelse return;
-
             wm.focused_output_idx = previous.output_idx;
             output.focused_workspace_idx = previous.workspace_idx;
             wm.previous_workspace = .{
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
             };
+            layout.apply(output, wm.config);
+        },
+        .focus_workspace_number => |number| {
+            if (number == 0 or number > 10) return;
+            if (workspace_idx == number - 1) return;
+
+            output.focused_workspace_idx = number - 1;
+            wm.previous_workspace = .{
+                .output_idx = output_idx,
+                .workspace_idx = workspace_idx,
+            };
+            layout.apply(output, wm.config);
+        },
+        .move_window_to_workspace_above => {
+            if (workspace_idx == 0) return;
+            move_window_to_workspace(workspace_idx - 1, output, workspace, allocator) catch |err| {
+                std.debug.print(
+                    "Failed to move window to workspace {}: {}\n",
+                    .{ workspace_idx - 1, err },
+                );
+                return;
+            };
+
+            wm.previous_workspace = .{
+                .output_idx = output_idx,
+                .workspace_idx = workspace_idx,
+            };
+            layout.apply(output, wm.config);
+        },
+        .move_window_to_workspace_below => {
+            if (workspace_idx == 9) return;
+            move_window_to_workspace(workspace_idx + 1, output, workspace, allocator) catch |err| {
+                std.debug.print(
+                    "Failed to move window to workspace {}: {}\n",
+                    .{ workspace_idx + 1, err },
+                );
+                return;
+            };
+
+            wm.previous_workspace = .{
+                .output_idx = output_idx,
+                .workspace_idx = workspace_idx,
+            };
+            layout.apply(output, wm.config);
+        },
+        .move_window_to_workspace_number => |number| {
+            if (number == 0 or number > 10 or number - 1 == workspace_idx) return;
+            move_window_to_workspace(number - 1, output, workspace, allocator) catch |err| {
+                std.debug.print(
+                    "Failed to move window to workspace {}: {}\n",
+                    .{ number, err },
+                );
+                return;
+            };
+
+            wm.previous_workspace = .{
+                .output_idx = output_idx,
+                .workspace_idx = workspace_idx,
+            };
+
             layout.apply(output, wm.config);
         },
         .focus_output_left => {
@@ -236,7 +267,7 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                 return;
             }
         },
-        .focus_output_up => {
+        .focus_output_above => {
             for (wm.output_list.items, 0..) |target_output, target_output_idx| {
                 if (target_output.rectangle.y + target_output.rectangle.height !=
                     output.rectangle.y) continue;
@@ -249,7 +280,7 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                 return;
             }
         },
-        .focus_output_down => {
+        .focus_output_below => {
             for (wm.output_list.items, 0..) |target_output, target_output_idx| {
                 if (target_output.rectangle.y !=
                     output.rectangle.y + output.rectangle.height) continue;
@@ -274,6 +305,30 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
         .spawn => |command| spawn(command, allocator) catch |err|
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err }),
     }
+}
+
+fn move_window_to_workspace(
+    target_workspace_idx: usize,
+    output: *types.Output,
+    workspace: *types.Workspace,
+    allocator: std.mem.Allocator,
+) !void {
+    const window_idx = workspace.focused_window_idx orelse return;
+    const window = workspace.window_list.orderedRemove(window_idx);
+
+    if (workspace.window_list.items.len == 0) {
+        workspace.focused_window_idx = null;
+    } else if (window_idx != 0) {
+        workspace.focused_window_idx = window_idx - 1;
+    }
+
+    const target_workspace = &output.workspace_list[target_workspace_idx];
+    var target_window_idx: usize = 0;
+    if (target_workspace.focused_window_idx) |idx| target_window_idx = idx + 1;
+
+    try target_workspace.window_list.insert(allocator, target_window_idx, window);
+    target_workspace.focused_window_idx = target_window_idx;
+    output.focused_workspace_idx = target_workspace_idx;
 }
 
 fn spawn(command: []const []const u8, allocator: std.mem.Allocator) !void {

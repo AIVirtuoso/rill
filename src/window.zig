@@ -19,7 +19,7 @@ fn addWindow(
     const gap = config.horizontal_gap;
     const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
 
-    const proportion = config.window_width_proportion;
+    const proportion = config.default_window_width;
     const width_with_gap: i32 = @intFromFloat(base_width * proportion);
     const height = non_exclusive.height - 2 * config.vertical_gap;
 
