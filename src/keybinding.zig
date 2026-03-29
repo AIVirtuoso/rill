@@ -1,5 +1,6 @@
 const std = @import("std");
 const wayland = @import("wayland");
+const xkb = @import("xkbcommon");
 const river = wayland.client.river;
 
 const config = @import("config.zig");
@@ -22,7 +23,7 @@ pub fn setup(wm: *types.WindowManager) void {
         };
         const xkb_binding = xkb_bindings.getXkbBinding(
             wm.river_seat.?,
-            keysym,
+            @intFromEnum(keysym),
             keybinding.modifiers,
         ) catch |err| {
             std.debug.print("Failed to get xkb binding: {}\n", .{err});
@@ -39,30 +40,10 @@ pub fn setup(wm: *types.WindowManager) void {
     }
 }
 
-const SpecialKeyMap = std.StaticStringMap(u32).initComptime(.{
-    .{ "Left", 0xFF51 },
-    .{ "Up", 0xFF52 },
-    .{ "Right", 0xFF53 },
-    .{ "Down", 0xFF54 },
-
-    .{ "BackSpace", 0xFF08 },
-    .{ "Tab", 0xFF09 },
-    .{ "Return", 0xFF0D },
-    .{ "Escape", 0xFF1B },
-    .{ "Delete", 0xFFFF },
-
-    .{ "XF86MonBrightnessUp", 0x1008FF02 },
-    .{ "XF86MonBrightnessDown", 0x1008FF03 },
-
-    .{ "XF86AudioLowerVolume", 0x1008FF11 },
-    .{ "XF86AudioMute", 0x1008FF12 },
-    .{ "XF86AudioRaiseVolume", 0x1008FF13 },
-    .{ "XF86AudioMicMute", 0x1008FFB2 },
-});
-
-fn parseKey(key: []const u8) ?u32 {
-    if (SpecialKeyMap.get(key)) |keysym| return keysym;
-    if (key.len == 1) return @as(u32, key[0]);
+fn parseKey(key: [:0]const u8) ?xkb.Keysym {
+    const keysym = xkb.Keysym.fromName(key, .case_insensitive);
+    if (keysym != .NoSymbol)
+        return keysym;
     return null;
 }
 

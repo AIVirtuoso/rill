@@ -16,9 +16,11 @@ pub fn build(b: *std.Build) void {
     const wayland_module = b.createModule(.{
         .root_source_file = scanner.result,
     });
+    const xkbcommon_module = b.dependency("xkbcommon", .{}).module("xkbcommon");
 
     const imports = [_]std.Build.Module.Import{
         .{ .name = "wayland", .module = wayland_module },
+        .{ .name = "xkbcommon", .module = xkbcommon_module },
     };
     const exe = b.addExecutable(.{
         .name = "rill",
@@ -30,6 +32,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     exe.root_module.linkSystemLibrary("wayland-client", .{});
+    exe.root_module.linkSystemLibrary("xkbcommon", .{});
 
     b.installArtifact(exe);
 
@@ -42,6 +45,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     keybinding_tests.root_module.linkSystemLibrary("wayland-client", .{});
+    keybinding_tests.root_module.linkSystemLibrary("xkbcommon", .{});
     const run_tests = b.addRunArtifact(keybinding_tests);
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_tests.step);

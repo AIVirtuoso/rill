@@ -28,8 +28,9 @@
     },
 
     .keybindings = .{
-        // Valid keys also include:
-        // "Left", "Up", "Right", "Down", "BackSpace", "Tab", "Return", "Escape", "Delete",
+        // Key uses the key names (case insensitive) from xkbcommon-keysyms.h.
+        // Common ones include:
+        // "Left", "Up", "Right", "Down", "BackSpace", "Tab", "Space", "Return", "Escape", "Delete",
         // "XF86MonBrightnessUp", "XF86MonBrightnessDown",
         // "XF86AudioRaiseVolume", "XF86AudioLowerVolume", "XF86AudioMute", "XF86AudioMicMute"
         //
@@ -39,9 +40,9 @@
         .{ .key = "f", .modifiers = .{ .mod4 = true }, .action = .toggle_fullscreen },
 
         // Decrease focused window's width by 0.1 of the output's available width
-        .{ .key = "-", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
+        .{ .key = "minus", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
         // Increase focused window's width by 0.1 of the output's available width
-        .{ .key = "=", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
+        .{ .key = "equal", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
 
         .{ .key = "Left", .modifiers = .{ .mod4 = true }, .action = .focus_window_left },
         .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_window_right },
@@ -50,7 +51,7 @@
 
         .{ .key = "Up", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_above },
         .{ .key = "Down", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_below },
-        .{ .key = "`", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
+        .{ .key = "grave", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
 
         .{ .key = "1", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 1 } },
         .{ .key = "2", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 2 } },
