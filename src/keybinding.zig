@@ -66,6 +66,16 @@ fn parseKey(key: []const u8) ?u32 {
     return null;
 }
 
+test "default config has no invalid keys" {
+    const default_config = types.Config{};
+    for (default_config.keybindings) |keybinding| {
+        if (parseKey(keybinding.key) == null) {
+            std.debug.print("Default config keybinding key '{s}' cannot be parsed", .{keybinding.key});
+            return error.UnknownKeybinding;
+        }
+    }
+}
+
 fn xkbBindingListener(
     xkb_binding: *river.XkbBindingV1,
     event: river.XkbBindingV1.Event,

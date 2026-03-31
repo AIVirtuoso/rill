@@ -17,18 +17,32 @@ pub fn build(b: *std.Build) void {
         .root_source_file = scanner.result,
     });
 
+    const imports = [_]std.Build.Module.Import{
+        .{ .name = "wayland", .module = wayland_module },
+    };
     const exe = b.addExecutable(.{
         .name = "rill",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "wayland", .module = wayland_module },
-            },
+            .imports = &imports,
         }),
     });
     exe.root_module.linkSystemLibrary("wayland-client", .{});
 
     b.installArtifact(exe);
+
+    const keybinding_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/keybinding.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &imports,
+        }),
+    });
+    keybinding_tests.root_module.linkSystemLibrary("wayland-client", .{});
+    const run_tests = b.addRunArtifact(keybinding_tests);
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_tests.step);
 }
