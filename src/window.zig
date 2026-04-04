@@ -5,7 +5,15 @@ const river = wayland.client.river;
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
-pub var pending: ?*river.WindowV1 = null;
+var pending: std.ArrayList(*river.WindowV1) = .empty;
+
+pub fn prepare(wm: *types.WindowManager, window: *river.WindowV1) !void {
+    try pending.append(wm.gpa.allocator(), window);
+    window.setListener(*types.WindowManager, windowListener, wm);
+    window.hide();
+    window.proposeDimensions(0, 0);
+    if (wm.config.no_csd) window.useSsd();
+}
 
 fn addWindow(
     river_window: *river.WindowV1,
@@ -47,7 +55,7 @@ fn addWindow(
     layout.apply(output, config);
 }
 
-pub fn windowListener(
+fn windowListener(
     river_window: *river.WindowV1,
     event: river.WindowV1.Event,
     wm: *types.WindowManager,
@@ -55,13 +63,19 @@ pub fn windowListener(
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
 
-    if (event == .dimensions and river_window == pending) {
-        addWindow(pending.?, output, wm.config, wm.gpa.allocator()) catch |err| {
-            std.debug.print("Failed to add window: {}\n", .{err});
+    if (event == .dimensions) {
+        for (pending.items, 0..) |window, i| {
+            if (window != river_window)
+                continue;
+
+            if (addWindow(window, output, wm.config, wm.gpa.allocator())) {
+                const removed = pending.swapRemove(i);
+                std.debug.assert(removed == window);
+            } else |err| {
+                std.debug.print("Failed to add window: {}\n", .{err});
+            }
             return;
-        };
-        pending = null;
-        return;
+        }
     }
 
     for (&output.workspace_list) |*workspace| {
