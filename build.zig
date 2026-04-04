@@ -4,7 +4,7 @@ const wayland = @import("wayland");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
+    const pie = b.option(bool, "pie", "Build with PIE") orelse false;
     const scanner = wayland.Scanner.create(b, .{});
     scanner.addCustomProtocol(b.path("protocol/river-window-management-v1.xml"));
     scanner.addCustomProtocol(b.path("protocol/river-xkb-bindings-v1.xml"));
@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    exe.pie = pie;
     exe.root_module.linkSystemLibrary("wayland-client", .{});
 
     b.installArtifact(exe);
