@@ -37,7 +37,7 @@ pub fn main() !void {
 
     while (true) {
         const status = display.dispatch();
-        if (@intFromEnum(status) != 0) {
+        if (status != .SUCCESS) {
             std.debug.print("Program stopped with status: {}\n", .{status});
             break;
         }
