@@ -16,20 +16,38 @@ pub fn build(b: *std.Build) void {
     const wayland_module = b.createModule(.{
         .root_source_file = scanner.result,
     });
+    const xkbcommon_module = b.dependency("xkbcommon", .{}).module("xkbcommon");
 
+    const imports = [_]std.Build.Module.Import{
+        .{ .name = "wayland", .module = wayland_module },
+        .{ .name = "xkbcommon", .module = xkbcommon_module },
+    };
     const exe = b.addExecutable(.{
         .name = "rill",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "wayland", .module = wayland_module },
-            },
+            .imports = &imports,
         }),
     });
     exe.pie = pie;
     exe.root_module.linkSystemLibrary("wayland-client", .{});
+    exe.root_module.linkSystemLibrary("xkbcommon", .{});
 
     b.installArtifact(exe);
+
+    const keybinding_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/keybinding.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &imports,
+        }),
+    });
+    keybinding_tests.root_module.linkSystemLibrary("wayland-client", .{});
+    keybinding_tests.root_module.linkSystemLibrary("xkbcommon", .{});
+    const run_tests = b.addRunArtifact(keybinding_tests);
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_tests.step);
 }

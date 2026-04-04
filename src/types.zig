@@ -106,7 +106,7 @@ const Color = struct {
 };
 
 pub const Keybinding = struct {
-    key: []const u8,
+    key: [:0]const u8,
     modifiers: river.SeatV1.Modifiers,
     action: Action,
     id: u32 = undefined,
@@ -139,8 +139,8 @@ pub const Action = union(enum) {
 var default_keybindings = [_]Keybinding{
     .{ .key = "q", .modifiers = .{ .mod4 = true }, .action = .close_window },
     .{ .key = "f", .modifiers = .{ .mod4 = true }, .action = .toggle_fullscreen },
-    .{ .key = "-", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
-    .{ .key = "=", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
+    .{ .key = "minus", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
+    .{ .key = "equal", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
 
     .{ .key = "Left", .modifiers = .{ .mod4 = true }, .action = .focus_window_left },
     .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_window_right },
@@ -149,7 +149,7 @@ var default_keybindings = [_]Keybinding{
 
     .{ .key = "Up", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_above },
     .{ .key = "Down", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_below },
-    .{ .key = "`", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
+    .{ .key = "grave", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
 
     .{ .key = "1", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 1 } },
     .{ .key = "2", .modifiers = .{ .mod4 = true }, .action = .{ .focus_workspace_number = 2 } },

@@ -57,6 +57,7 @@ See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.
 * zig 0.15
 * wayland
 * wayland-protocols
+* xkbcommon
 ```sh
 zig build --release=safe
 ```
