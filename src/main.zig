@@ -37,7 +37,7 @@ pub fn main() !void {
 
     while (true) {
         const status = display.dispatch();
-        if (@intFromEnum(status) != 0) {
+        if (status != .SUCCESS) {
             std.debug.print("Program stopped with status: {}\n", .{status});
             break;
         }
@@ -112,11 +112,9 @@ fn windowManagerListener(
             keybinding.setup(&wm);
         },
         .window => |window_event| {
-            window.pending = window_event.id;
-            window_event.id.setListener(*types.WindowManager, window.windowListener, &wm);
-            window_event.id.hide();
-            window_event.id.proposeDimensions(0, 0);
-            if (wm.config.no_csd) window_event.id.useSsd();
+            window.prepare(&wm, window_event.id) catch |err| {
+                std.debug.print("Failed to prepare window {d}: {}\n", .{ window_event.id.getId(), err });
+            };
         },
         .manage_start => {
             const idx = wm.focused_output_idx orelse return;
