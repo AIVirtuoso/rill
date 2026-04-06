@@ -89,6 +89,11 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             const window_idx = workspace.focused_window_idx orelse return;
             const window = &workspace.window_list.items[window_idx];
             window.is_fullscreen = !window.is_fullscreen;
+            if (window.is_fullscreen) {
+                window.river_window.informFullscreen();
+            } else {
+                window.river_window.informNotFullscreen();
+            }
             layout.apply(output, wm.config);
         },
         .adjust_window_width => |increment| {

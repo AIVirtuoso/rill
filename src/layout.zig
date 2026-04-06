@@ -65,6 +65,7 @@ pub fn apply(output: *types.Output, config: types.Config) void {
                 focused_color.a,
             );
         }
+        focused_window.river_node.placeTop();
 
         focused_window.start = focused_window.rectangle;
         focused_window.finish = rectangle;

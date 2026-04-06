@@ -51,16 +51,8 @@ pub fn apply(
                     window_idx == workspace.focused_window_idx)
                 {
                     seat.focusWindow(window.river_window);
-                    window.river_node.placeTop();
                     if (window.is_fullscreen)
                         window.river_window.fullscreen(output.river_output);
-                }
-
-                if (window.is_fullscreen) {
-                    window.river_window.informFullscreen();
-                    window.river_window.setBorders(.{}, 0, 0, 0, 0, 0);
-                } else {
-                    window.river_window.informNotFullscreen();
                 }
 
                 window.start = null;

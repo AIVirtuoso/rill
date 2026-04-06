@@ -98,10 +98,12 @@ fn windowListener(
                 },
                 .fullscreen_requested => {
                     window.is_fullscreen = true;
+                    window.river_window.informFullscreen();
                     layout.apply(output, wm.config);
                 },
                 .exit_fullscreen_requested => {
                     window.is_fullscreen = false;
+                    window.river_window.informNotFullscreen();
                     layout.apply(output, wm.config);
                 },
                 else => {},
