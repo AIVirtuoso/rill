@@ -113,7 +113,10 @@ fn windowManagerListener(
         },
         .window => |window_event| {
             window.prepare(&wm, window_event.id) catch |err| {
-                std.debug.print("Failed to prepare window {d}: {}\n", .{ window_event.id.getId(), err });
+                std.debug.print(
+                    "Failed to prepare window {d}: {}\n",
+                    .{ window_event.id.getId(), err },
+                );
             };
         },
         .manage_start => {
@@ -149,12 +152,31 @@ fn outputListener(
                 output.rectangle.y = position.y;
             },
             .removed => {
-                for (&output.workspace_list) |*workspace|
+                for (&output.workspace_list) |*workspace| {
+                    for (workspace.window_list.items) |*item|
+                        item.river_window.close();
                     workspace.window_list.deinit(wm.gpa.allocator());
+                }
                 _ = wm.output_list.swapRemove(idx);
+
+                if (wm.output_list.items.len == 0) {
+                    wm.focused_output_idx = null;
+                    wm.previous_workspace = null;
+                } else if (wm.focused_output_idx == wm.output_list.items.len) {
+                    wm.focused_output_idx = @min(idx, wm.output_list.items.len - 1);
+                }
+
+                const previous_workspace = wm.previous_workspace orelse return;
+                if (previous_workspace.output_idx == idx) {
+                    wm.previous_workspace = null;
+                } else if (previous_workspace.output_idx == wm.output_list.items.len) {
+                    wm.previous_workspace.?.output_idx =
+                        @min(idx, wm.output_list.items.len - 1);
+                }
             },
             else => {},
         }
+        return;
     }
 }
 
@@ -163,7 +185,7 @@ fn layerShellOutputListener(
     event: river.LayerShellOutputV1.Event,
     river_output: *river.OutputV1,
 ) void {
-    for (wm.output_list.items, 0..) |*output, idx| {
+    for (wm.output_list.items) |*output| {
         if (output.river_output != river_output) continue;
         switch (event) {
             .non_exclusive_area => |area| {
@@ -173,7 +195,7 @@ fn layerShellOutputListener(
                     .x = area.x,
                     .y = area.y,
                 };
-                if (idx == wm.focused_output_idx) layout.apply(output, wm.config);
+                layout.apply(output, wm.config);
             },
         }
     }
@@ -190,13 +212,13 @@ fn seatListener(
             const output = &wm.output_list.items[output_idx];
 
             for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
-                const workspace =
+                const target_workspace =
                     &target_output.workspace_list[target_output.focused_workspace_idx];
 
-                for (workspace.window_list.items, 0..) |item, window_idx| {
+                for (target_workspace.window_list.items, 0..) |item, window_idx| {
                     if (item.river_window != interaction.window) continue;
 
-                    workspace.focused_window_idx = window_idx;
+                    target_workspace.focused_window_idx = window_idx;
                     wm.focused_output_idx = target_output_idx;
                     if (target_output_idx != output_idx)
                         wm.previous_workspace = .{
