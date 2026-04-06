@@ -12,7 +12,7 @@ pub fn apply(
 ) void {
     const begin = begin_time orelse return;
     const duration = config.animation_duration;
-    if (std.time.milliTimestamp() - begin >= duration) begin_time = null;
+    const is_last_frame = std.time.milliTimestamp() - begin >= duration;
 
     const elapsed: f32 = @floatFromInt(std.time.milliTimestamp() - begin);
     const progress = elapsed / @as(f32, @floatFromInt(duration));
@@ -23,7 +23,7 @@ pub fn apply(
             const start = window.start orelse continue;
             const finish = window.finish orelse continue;
 
-            if (std.time.milliTimestamp() - begin < duration) {
+            if (!is_last_frame) {
                 const width_distance: f32 = @floatFromInt(finish.width - start.width);
                 const height_distance: f32 = @floatFromInt(finish.height - start.height);
                 const x_distance: f32 = @floatFromInt(finish.x - start.x);
@@ -63,12 +63,12 @@ pub fn apply(
                     window.river_window.informNotFullscreen();
                 }
 
-                window.rectangle = finish;
                 window.start = null;
                 window.finish = null;
             }
         }
     }
+    if (is_last_frame) begin_time = null;
 }
 
 fn placeWindow(
