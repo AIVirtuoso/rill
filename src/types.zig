@@ -1,11 +1,10 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
-const wl = wayland.client.wl;
 
 pub const WindowManager = struct {
     gpa: std.heap.DebugAllocator(.{}) = .init,
-    registry: *wl.Registry = undefined,
+    registry: *wayland.client.wl.Registry = undefined,
     river_window_manager: ?*river.WindowManagerV1 = null,
     river_xkb_bindings: ?*river.XkbBindingsV1 = null,
     river_layer_shell: ?*river.LayerShellV1 = null,
@@ -50,6 +49,7 @@ pub const Workspace = struct {
 
 pub const Output = struct {
     river_output: *river.OutputV1,
+    river_layer_shell_output: ?*river.LayerShellOutputV1,
     workspace_list: [10]Workspace,
     focused_workspace_idx: usize,
     rectangle: Rectangle,

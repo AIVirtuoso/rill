@@ -318,6 +318,9 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     return;
                 };
 
+                if (target_output.river_layer_shell_output) |layer_shell_output|
+                    layer_shell_output.setDefault();
+
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -343,6 +346,9 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     std.debug.print("Failed to move window: {}\n", .{err});
                     return;
                 };
+
+                if (target_output.river_layer_shell_output) |layer_shell_output|
+                    layer_shell_output.setDefault();
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -370,6 +376,9 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     return;
                 };
 
+                if (target_output.river_layer_shell_output) |layer_shell_output|
+                    layer_shell_output.setDefault();
+
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -395,6 +404,9 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     std.debug.print("Failed to move window: {}\n", .{err});
                     return;
                 };
+
+                if (target_output.river_layer_shell_output) |layer_shell_output|
+                    layer_shell_output.setDefault();
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -443,6 +455,9 @@ fn move_window_to_workspace(
 }
 
 fn focus_output(output: *types.Output, river_seat: ?*river.SeatV1) void {
+    if (output.river_layer_shell_output) |layer_shell_output|
+        layer_shell_output.setDefault();
+
     const seat = river_seat orelse {
         std.debug.print("Failed to find seat\n", .{});
         return;

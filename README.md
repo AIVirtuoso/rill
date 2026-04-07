@@ -6,6 +6,7 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 * Workspaces
 * Animations
 * Live-reloading config
+* Multi-output
 
 <video src="https://pub-da8894d425e3482384b5adec2dcc2361.r2.dev/recording.mp4" controls> </video>
 

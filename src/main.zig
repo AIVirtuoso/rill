@@ -79,6 +79,7 @@ fn windowManagerListener(
         .output => |output_event| {
             const output = types.Output{
                 .river_output = output_event.id,
+                .river_layer_shell_output = getLayerShellOutput(output_event.id),
                 .workspace_list = [_]types.Workspace{.{}} ** 10,
                 .focused_workspace_idx = 0,
                 .rectangle = undefined,
@@ -90,21 +91,6 @@ fn windowManagerListener(
             };
             wm.focused_output_idx = wm.output_list.items.len - 1;
             output_event.id.setListener(?*anyopaque, outputListener, null);
-
-            const layer_shell = wm.river_layer_shell orelse {
-                std.debug.print("Failed to find layer shell\n", .{});
-                return;
-            };
-            const layer_shell_output = layer_shell.getOutput(output_event.id) catch {
-                std.debug.print("Failed to get layer shell output\n", .{});
-                return;
-            };
-
-            layer_shell_output.setListener(
-                *river.OutputV1,
-                layerShellOutputListener,
-                output_event.id,
-            );
         },
         .seat => |seat_event| {
             wm.river_seat = seat_event.id;
@@ -124,7 +110,7 @@ fn windowManagerListener(
         .window => |window_event| {
             window.prepare(&wm, window_event.id) catch |err| {
                 std.debug.print(
-                    "Failed to prepare window {d}: {}\n",
+                    "Failed to prepare window {}: {}\n",
                     .{ window_event.id.getId(), err },
                 );
             };
@@ -142,6 +128,21 @@ fn windowManagerListener(
         .finished => window_manager.destroy(),
         else => {},
     }
+}
+
+fn getLayerShellOutput(river_output: *river.OutputV1) ?*river.LayerShellOutputV1 {
+    const layer_shell = wm.river_layer_shell orelse {
+        std.debug.print("Failed to find layer shell\n", .{});
+        return null;
+    };
+    const layer_shell_output = layer_shell.getOutput(river_output) catch {
+        std.debug.print("Failed to get layer shell output\n", .{});
+        return null;
+    };
+
+    layer_shell_output.setListener(?*anyopaque, layerShellOutputListener, null);
+    layer_shell_output.setDefault();
+    return layer_shell_output;
 }
 
 fn outputListener(
@@ -190,12 +191,12 @@ fn outputListener(
 }
 
 fn layerShellOutputListener(
-    _: *river.LayerShellOutputV1,
+    layer_shell_output: *river.LayerShellOutputV1,
     event: river.LayerShellOutputV1.Event,
-    river_output: *river.OutputV1,
+    _: ?*anyopaque,
 ) void {
     for (wm.output_list.items) |*output| {
-        if (output.river_output != river_output) continue;
+        if (output.river_layer_shell_output != layer_shell_output) continue;
         switch (event) {
             .non_exclusive_area => |area| {
                 output.non_exclusive = .{
@@ -207,6 +208,7 @@ fn layerShellOutputListener(
                 layout.apply(&wm.output_list, wm.config);
             },
         }
+        return;
     }
 }
 
@@ -227,15 +229,17 @@ fn seatListener(
                 for (target_workspace.window_list.items, 0..) |item, window_idx| {
                     if (item.river_window != interaction.window) continue;
 
-                    target_workspace.focused_window_idx = window_idx;
+                    if (target_output.river_layer_shell_output) |layer_shell_output|
+                        layer_shell_output.setDefault();
                     wm.focused_output_idx = target_output_idx;
+                    target_workspace.focused_window_idx = window_idx;
+
                     if (target_output_idx != output_idx)
                         wm.previous_workspace = .{
                             .output_idx = output_idx,
                             .workspace_idx = output.focused_workspace_idx,
                         };
                     layout.apply(&wm.output_list, wm.config);
-
                     return;
                 }
             }
