@@ -110,6 +110,16 @@ fn windowManagerListener(
             wm.river_seat = seat_event.id;
             seat_event.id.setListener(?*anyopaque, seatListener, null);
             keybinding.setup(&wm);
+
+            const layer_shell = wm.river_layer_shell orelse {
+                std.debug.print("Failed to find layer shell\n", .{});
+                return;
+            };
+            const layer_shell_seat = layer_shell.getSeat(seat_event.id) catch {
+                std.debug.print("Failed to get layer shell seat\n", .{});
+                return;
+            };
+            layer_shell_seat.setListener(?*anyopaque, layerShellSeatListener, null);
         },
         .window => |window_event| {
             window.prepare(&wm, window_event.id) catch |err| {
@@ -230,6 +240,27 @@ fn seatListener(
                     return;
                 }
             }
+        },
+        else => {},
+    }
+}
+
+fn layerShellSeatListener(
+    _: *river.LayerShellSeatV1,
+    event: river.LayerShellSeatV1.Event,
+    _: ?*anyopaque,
+) void {
+    switch (event) {
+        .focus_none => {
+            const seat = wm.river_seat orelse {
+                std.debug.print("Failed to find seat\n", .{});
+                return;
+            };
+            const output_idx = wm.focused_output_idx orelse return;
+            const output = wm.output_list.items[output_idx];
+            const workspace = output.workspace_list[output.focused_workspace_idx];
+            const window_idx = workspace.focused_window_idx orelse return;
+            seat.focusWindow(workspace.window_list.items[window_idx].river_window);
         },
         else => {},
     }
