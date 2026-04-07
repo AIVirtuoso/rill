@@ -244,10 +244,11 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             };
         },
         .focus_output_left => {
-            for (wm.output_list.items, 0..) |target_output, target_output_idx| {
+            for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 if (target_output.rectangle.x + target_output.rectangle.width !=
                     output.rectangle.x) continue;
 
+                focus_output(target_output, wm.river_seat);
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -257,10 +258,11 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             }
         },
         .focus_output_right => {
-            for (wm.output_list.items, 0..) |target_output, target_output_idx| {
+            for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 if (target_output.rectangle.x !=
                     output.rectangle.x + output.rectangle.width) continue;
 
+                focus_output(target_output, wm.river_seat);
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -270,10 +272,11 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             }
         },
         .focus_output_above => {
-            for (wm.output_list.items, 0..) |target_output, target_output_idx| {
+            for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 if (target_output.rectangle.y + target_output.rectangle.height !=
                     output.rectangle.y) continue;
 
+                focus_output(target_output, wm.river_seat);
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -283,10 +286,11 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             }
         },
         .focus_output_below => {
-            for (wm.output_list.items, 0..) |target_output, target_output_idx| {
+            for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 if (target_output.rectangle.y !=
                     output.rectangle.y + output.rectangle.height) continue;
 
+                focus_output(target_output, wm.river_seat);
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -436,6 +440,16 @@ fn move_window_to_workspace(
 
     try target_workspace.window_list.insert(allocator, target_window_idx, window);
     target_workspace.focused_window_idx = target_window_idx;
+}
+
+fn focus_output(output: *types.Output, river_seat: ?*river.SeatV1) void {
+    const seat = river_seat orelse {
+        std.debug.print("Failed to find seat\n", .{});
+        return;
+    };
+    const workspace = output.workspace_list[output.focused_workspace_idx];
+    const window_idx = workspace.focused_window_idx orelse return;
+    seat.focusWindow(workspace.window_list.items[window_idx].river_window);
 }
 
 fn spawn(command: []const []const u8, allocator: std.mem.Allocator) !void {
