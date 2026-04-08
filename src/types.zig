@@ -116,6 +116,7 @@ pub const Action = union(enum) {
     close_window: void,
     toggle_fullscreen: void,
     adjust_window_width: f32,
+    set_window_width: f32,
     focus_window_left: void,
     focus_window_right: void,
     move_window_left: void,
@@ -141,6 +142,7 @@ var default_keybindings = [_]Keybinding{
     .{ .key = "f", .modifiers = .{ .mod4 = true }, .action = .toggle_fullscreen },
     .{ .key = "minus", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
     .{ .key = "equal", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
+    .{ .key = "BackSpace", .modifiers = .{ .mod4 = true }, .action = .{ .set_window_width = 0.5 } },
 
     .{ .key = "Left", .modifiers = .{ .mod4 = true }, .action = .focus_window_left },
     .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_window_right },

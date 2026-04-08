@@ -27,15 +27,16 @@ See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.
 |----------|--------|
 | `Super` `q` | Close window |
 | `Super` `f` | Toggle fullscreen |
-| `Super` `-` | Decrease window's width by a proportion of 0.1 |
-| `Super` `=` | Increase window's width by a proportion of 0.1 |
+| `Super` `minus` | Decrease window's width by a proportion of 0.1 |
+| `Super` `equal` | Increase window's width by a proportion of 0.1 |
+| `Super` `BackSpace` | Set window's width to a proportion of 0.5 |
 | `Super` `Left` | Focus on the left window |
 | `Super` `Right` | Focus on the right window |
 | `Super` `Shift` `Left` | Move window to the left |
 | `Super` `Shift` `Right` | Move window to the right |
 | `Super` `Up` | Focus on the workspace above |
 | `Super` `Down` | Focus on the workspace below |
-| `Super` `` ` `` | Focus on previous workspace |
+| `Super` `grave` | Focus on previous workspace |
 | `Super` `1~0` | Focus on workspace 1~10 |
 | `Super` `Shift` `Up` | Move window to the workspace above |
 | `Super` `Shift` `Down` | Move window to the workspace below |

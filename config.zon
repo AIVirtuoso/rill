@@ -28,7 +28,7 @@
     },
 
     .keybindings = .{
-        // Key uses the key names (case insensitive) from xkbcommon-keysyms.h.
+        // Key: use keysym names (case insensitive) from xkbcommon-keysyms.h
         // Common ones include:
         // "Left", "Up", "Right", "Down", "BackSpace", "Tab", "Space", "Return", "Escape", "Delete",
         // "XF86MonBrightnessUp", "XF86MonBrightnessDown",
@@ -43,6 +43,8 @@
         .{ .key = "minus", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },
         // Increase focused window's width by 0.1 of the output's available width
         .{ .key = "equal", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = 0.1 } },
+        // Set focused window's width to 0.5 of the output's available width
+        .{ .key = "BackSpace", .modifiers = .{ .mod4 = true }, .action = .{ .set_window_width = 0.5 } },
 
         .{ .key = "Left", .modifiers = .{ .mod4 = true }, .action = .focus_window_left },
         .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_window_right },

@@ -111,6 +111,12 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             window.proportion += increment;
             layout.apply(output, wm.config);
         },
+        .set_window_width => |proportion| {
+            const window_idx = workspace.focused_window_idx orelse return;
+            var window = &workspace.window_list.items[window_idx];
+            window.proportion = proportion;
+            layout.apply(output, wm.config);
+        },
         .focus_window_left => {
             const window_idx = workspace.focused_window_idx orelse return;
             if (window_idx == 0) return;
