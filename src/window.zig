@@ -50,9 +50,7 @@ fn addWindow(
     var window_idx: usize = 0;
     if (workspace.focused_window_idx) |idx| window_idx = idx + 1;
     try workspace.window_list.insert(allocator, window_idx, window);
-
     workspace.focused_window_idx = window_idx;
-    layout.apply(output, config);
 }
 
 fn windowListener(
@@ -64,13 +62,14 @@ fn windowListener(
     const output = &wm.output_list.items[output_idx];
 
     if (event == .dimensions) {
-        for (pending.items, 0..) |window, i| {
+        for (pending.items, 0..) |window, idx| {
             if (window != river_window)
                 continue;
 
             if (addWindow(window, output, wm.config, wm.gpa.allocator())) {
-                const removed = pending.swapRemove(i);
+                const removed = pending.swapRemove(idx);
                 std.debug.assert(removed == window);
+                layout.apply(&wm.output_list, wm.config);
             } else |err| {
                 std.debug.print("Failed to add window: {}\n", .{err});
             }
@@ -94,20 +93,18 @@ fn windowListener(
                     } else if (idx <= window_idx and window_idx != 0) {
                         workspace.focused_window_idx = window_idx - 1;
                     }
-                    layout.apply(output, wm.config);
                 },
                 .fullscreen_requested => {
                     window.is_fullscreen = true;
                     window.river_window.informFullscreen();
-                    layout.apply(output, wm.config);
                 },
                 .exit_fullscreen_requested => {
                     window.is_fullscreen = false;
                     window.river_window.informNotFullscreen();
-                    layout.apply(output, wm.config);
                 },
-                else => {},
+                else => return,
             }
+            layout.apply(&wm.output_list, wm.config);
             return;
         }
     }

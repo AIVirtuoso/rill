@@ -132,6 +132,10 @@ pub const Action = union(enum) {
     focus_output_right: void,
     focus_output_above: void,
     focus_output_below: void,
+    move_window_to_output_left: void,
+    move_window_to_output_right: void,
+    move_window_to_output_above: void,
+    move_window_to_output_below: void,
     exit: void,
     reload_config: void,
     spawn: []const []const u8,
@@ -182,6 +186,11 @@ var default_keybindings = [_]Keybinding{
     .{ .key = "l", .modifiers = .{ .mod4 = true }, .action = .focus_output_right },
     .{ .key = "k", .modifiers = .{ .mod4 = true }, .action = .focus_output_above },
     .{ .key = "j", .modifiers = .{ .mod4 = true }, .action = .focus_output_below },
+
+    .{ .key = "h", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_output_left },
+    .{ .key = "l", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_output_right },
+    .{ .key = "k", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_output_above },
+    .{ .key = "j", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_to_output_below },
 
     .{ .key = "Escape", .modifiers = .{ .mod4 = true }, .action = .exit },
     .{ .key = "r", .modifiers = .{ .mod4 = true }, .action = .reload_config },

@@ -130,14 +130,13 @@ fn windowManagerListener(
             };
         },
         .manage_start => {
-            const idx = wm.focused_output_idx orelse return;
+            defer window_manager.manageFinish();
             const seat = wm.river_seat orelse {
                 std.debug.print("Failed to find seat\n", .{});
                 return;
             };
-
-            animation.apply(&wm.output_list.items[idx], wm.config, seat);
-            window_manager.manageFinish();
+            if (wm.focused_output_idx) |focused_output_idx|
+                animation.apply(&wm.output_list, focused_output_idx, wm.config, seat);
         },
         .render_start => window_manager.renderFinish(),
         .finished => window_manager.destroy(),
@@ -205,7 +204,7 @@ fn layerShellOutputListener(
                     .x = area.x,
                     .y = area.y,
                 };
-                layout.apply(output, wm.config);
+                layout.apply(&wm.output_list, wm.config);
             },
         }
     }
@@ -235,7 +234,7 @@ fn seatListener(
                             .output_idx = output_idx,
                             .workspace_idx = output.focused_workspace_idx,
                         };
-                    layout.apply(target_output, wm.config);
+                    layout.apply(&wm.output_list, wm.config);
 
                     return;
                 }

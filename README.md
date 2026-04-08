@@ -45,6 +45,10 @@ See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.
 | `Super` `l` | Focus on the right output |
 | `Super` `k` | Focus on the output above |
 | `Super` `j` | Focus on the output below |
+| `Super` `Shift` `h` | Move window to the left output |
+| `Super` `Shift` `l` | Move window to the right output |
+| `Super` `Shift` `k` | Move window to the output above |
+| `Super` `Shift` `j` | Move window to the output below |
 | `Super` `Escape` | Exit river |
 | `Super` `r` | Reload config |
 | `Super` `t` | Open alacritty |

@@ -6,7 +6,8 @@ const types = @import("types.zig");
 
 pub var begin_time: ?i64 = null;
 pub fn apply(
-    output: *types.Output,
+    output_list: *std.ArrayList(types.Output),
+    focused_output_idx: usize,
     config: types.Config,
     seat: *river.SeatV1,
 ) void {
@@ -18,45 +19,48 @@ pub fn apply(
     const progress = elapsed / @as(f32, @floatFromInt(duration));
     const eased = 1 - std.math.pow(f32, 1 - progress, 3);
 
-    for (&output.workspace_list, 0..) |*workspace, workspace_idx| {
-        for (workspace.window_list.items, 0..) |*window, window_idx| {
-            const start = window.start orelse continue;
-            const finish = window.finish orelse continue;
+    for (output_list.items, 0..) |*output, output_idx| {
+        for (&output.workspace_list, 0..) |*workspace, workspace_idx| {
+            for (workspace.window_list.items, 0..) |*window, window_idx| {
+                const start = window.start orelse continue;
+                const finish = window.finish orelse continue;
 
-            if (!is_last_frame) {
-                const width_distance: f32 = @floatFromInt(finish.width - start.width);
-                const height_distance: f32 = @floatFromInt(finish.height - start.height);
-                const x_distance: f32 = @floatFromInt(finish.x - start.x);
-                const y_distance: f32 = @floatFromInt(finish.y - start.y);
+                if (!is_last_frame) {
+                    const width_distance: f32 = @floatFromInt(finish.width - start.width);
+                    const height_distance: f32 = @floatFromInt(finish.height - start.height);
+                    const x_distance: f32 = @floatFromInt(finish.x - start.x);
+                    const y_distance: f32 = @floatFromInt(finish.y - start.y);
 
-                const width_progress: i32 = @intFromFloat(width_distance * eased);
-                const height_progress: i32 = @intFromFloat(height_distance * eased);
-                const x_progress: i32 = @intFromFloat(x_distance * eased);
-                const y_progress: i32 = @intFromFloat(y_distance * eased);
+                    const width_progress: i32 = @intFromFloat(width_distance * eased);
+                    const height_progress: i32 = @intFromFloat(height_distance * eased);
+                    const x_progress: i32 = @intFromFloat(x_distance * eased);
+                    const y_progress: i32 = @intFromFloat(y_distance * eased);
 
-                window.rectangle = .{
-                    .width = start.width + width_progress,
-                    .height = start.height + height_progress,
-                    .x = start.x + x_progress,
-                    .y = start.y + y_progress,
-                };
+                    window.rectangle = .{
+                        .width = start.width + width_progress,
+                        .height = start.height + height_progress,
+                        .x = start.x + x_progress,
+                        .y = start.y + y_progress,
+                    };
 
-                window.river_window.exitFullscreen();
-                placeWindow(window, output.rectangle, config.border.width);
-            } else {
-                window.rectangle = finish;
-                placeWindow(window, output.rectangle, config.border.width);
+                    window.river_window.exitFullscreen();
+                    placeWindow(window, output.rectangle, config.border.width);
+                } else {
+                    window.rectangle = finish;
+                    placeWindow(window, output.rectangle, config.border.width);
 
-                if (workspace_idx == output.focused_workspace_idx and
-                    window_idx == workspace.focused_window_idx)
-                {
-                    seat.focusWindow(window.river_window);
-                    if (window.is_fullscreen)
-                        window.river_window.fullscreen(output.river_output);
+                    if (output_idx == focused_output_idx and
+                        workspace_idx == output.focused_workspace_idx and
+                        window_idx == workspace.focused_window_idx)
+                    {
+                        seat.focusWindow(window.river_window);
+                        if (window.is_fullscreen)
+                            window.river_window.fullscreen(output.river_output);
+                    }
+
+                    window.start = null;
+                    window.finish = null;
                 }
-
-                window.start = null;
-                window.finish = null;
             }
         }
     }
