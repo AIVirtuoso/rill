@@ -164,7 +164,8 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
         .focus_workspace_previous => {
             const previous = wm.previous_workspace orelse return;
             wm.focused_output_idx = previous.output_idx;
-            output.focused_workspace_idx = previous.workspace_idx;
+            const target_output = &wm.output_list.items[previous.output_idx];
+            target_output.focused_workspace_idx = previous.workspace_idx;
             wm.previous_workspace = .{
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
@@ -318,9 +319,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     return;
                 };
 
-                if (target_output.river_layer_shell_output) |layer_shell_output|
-                    layer_shell_output.setDefault();
-
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -346,9 +344,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     std.debug.print("Failed to move window: {}\n", .{err});
                     return;
                 };
-
-                if (target_output.river_layer_shell_output) |layer_shell_output|
-                    layer_shell_output.setDefault();
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -376,9 +371,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     return;
                 };
 
-                if (target_output.river_layer_shell_output) |layer_shell_output|
-                    layer_shell_output.setDefault();
-
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
                     .output_idx = output_idx,
@@ -404,9 +396,6 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
                     std.debug.print("Failed to move window: {}\n", .{err});
                     return;
                 };
-
-                if (target_output.river_layer_shell_output) |layer_shell_output|
-                    layer_shell_output.setDefault();
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{

@@ -5,10 +5,10 @@ const river = wayland.client.river;
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
-var pending: std.ArrayList(*river.WindowV1) = .empty;
+var pending_windows: std.ArrayList(*river.WindowV1) = .empty;
 
 pub fn prepare(wm: *types.WindowManager, window: *river.WindowV1) !void {
-    try pending.append(wm.gpa.allocator(), window);
+    try pending_windows.append(wm.gpa.allocator(), window);
     window.setListener(*types.WindowManager, windowListener, wm);
     window.hide();
     window.proposeDimensions(0, 0);
@@ -62,17 +62,14 @@ fn windowListener(
     const output = &wm.output_list.items[output_idx];
 
     if (event == .dimensions) {
-        for (pending.items, 0..) |window, idx| {
-            if (window != river_window)
-                continue;
-
-            if (addWindow(window, output, wm.config, wm.gpa.allocator())) {
-                const removed = pending.swapRemove(idx);
-                std.debug.assert(removed == window);
-                layout.apply(&wm.output_list, wm.config);
-            } else |err| {
+        for (pending_windows.items, 0..) |window, idx| {
+            if (window != river_window) continue;
+            addWindow(window, output, wm.config, wm.gpa.allocator()) catch |err| {
                 std.debug.print("Failed to add window: {}\n", .{err});
-            }
+                return;
+            };
+            _ = pending_windows.swapRemove(idx);
+            layout.apply(&wm.output_list, wm.config);
             return;
         }
     }

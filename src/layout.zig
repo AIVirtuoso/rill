@@ -146,15 +146,14 @@ fn snapToEdge(
 ) void {
     var head_distance: ?i32 = null;
     const head = window_list[0].finish.?.x;
-    const screen_left = non_exclusive.x + gap;
-    if (head > screen_left) head_distance = head - screen_left;
+    const left = non_exclusive.x + gap;
+    if (head > left) head_distance = head - left;
 
     var tail_distance: ?i32 = null;
     const tail_window = window_list[window_list.len - 1];
     const tail = tail_window.finish.?.x + tail_window.finish.?.width;
-    const screen_right = non_exclusive.x + non_exclusive.width - gap;
-    if (tail < screen_right)
-        tail_distance = @min(screen_right - tail, screen_left - head);
+    const right = non_exclusive.x + non_exclusive.width - gap;
+    if (tail < right) tail_distance = @min(right - tail, left - head);
 
     for (window_list) |*window| {
         const x = &window.finish.?.x;

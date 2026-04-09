@@ -5,6 +5,7 @@ const river = wayland.client.river;
 const types = @import("types.zig");
 
 pub var begin_time: ?i64 = null;
+
 pub fn apply(
     output_list: *std.ArrayList(types.Output),
     focused_output_idx: usize,
@@ -49,20 +50,23 @@ pub fn apply(
                     window.rectangle = finish;
                     placeWindow(window, output.rectangle, config.border.width);
 
-                    if (output_idx == focused_output_idx and
-                        workspace_idx == output.focused_workspace_idx and
-                        window_idx == workspace.focused_window_idx)
-                    {
-                        seat.focusWindow(window.river_window);
-                        if (window.is_fullscreen)
-                            window.river_window.fullscreen(output.river_output);
-                    }
-
                     window.start = null;
                     window.finish = null;
+
+                    if (output_idx != focused_output_idx) continue;
+                    if (workspace_idx != output.focused_workspace_idx) continue;
+                    if (window_idx != workspace.focused_window_idx) continue;
+
+                    seat.focusWindow(window.river_window);
+                    if (window.is_fullscreen)
+                        window.river_window.fullscreen(output.river_output);
                 }
             }
         }
+        if (!is_last_frame) continue;
+        if (output_idx != focused_output_idx) continue;
+        if (output.river_layer_shell_output) |layer_shell_output|
+            layer_shell_output.setDefault();
     }
     if (is_last_frame) begin_time = null;
 }

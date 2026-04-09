@@ -13,10 +13,9 @@ const window = @import("window.zig");
 var wm: types.WindowManager = .{};
 
 pub fn main() !void {
-    const allocator = wm.gpa.allocator();
-
     const display = try wl.Display.connect(null);
     defer display.disconnect();
+    defer wm.deinit(config.is_parsed);
 
     wm.registry = try display.getRegistry();
     wm.registry.setListener(?*anyopaque, registryListener, null);
@@ -28,7 +27,9 @@ pub fn main() !void {
     };
     window_manager.setListener(?*anyopaque, windowManagerListener, null);
 
+    const allocator = wm.gpa.allocator();
     wm.config = config.load(allocator);
+
     for (wm.config.spawn_at_startup) |command| {
         var child = std.process.Child.init(command, allocator);
         child.spawn() catch |err|
@@ -38,13 +39,11 @@ pub fn main() !void {
     while (true) {
         const status = display.dispatch();
         if (status != .SUCCESS) {
-            std.debug.print("Program stopped with status: {}\n", .{status});
+            std.debug.print("Window manager stopped with status: {}\n", .{status});
             break;
         }
         if (animation.begin_time) |_| window_manager.manageDirty();
     }
-
-    wm.deinit(config.is_parsed);
 }
 
 fn registryListener(
@@ -107,14 +106,8 @@ fn windowManagerListener(
             };
             layer_shell_seat.setListener(?*anyopaque, layerShellSeatListener, null);
         },
-        .window => |window_event| {
-            window.prepare(&wm, window_event.id) catch |err| {
-                std.debug.print(
-                    "Failed to prepare window {}: {}\n",
-                    .{ window_event.id.getId(), err },
-                );
-            };
-        },
+        .window => |window_event| window.prepare(&wm, window_event.id) catch |err|
+            std.debug.print("Failed to prepare window: {}\n", .{err}),
         .manage_start => {
             defer window_manager.manageFinish();
             const seat = wm.river_seat orelse {
