@@ -28,7 +28,7 @@ pub fn main() !void {
     };
     window_manager.setListener(?*anyopaque, windowManagerListener, null);
 
-    if (config.load(allocator)) |loaded_config| wm.config = loaded_config;
+    wm.config = config.load(allocator);
     for (wm.config.spawn_at_startup) |command| {
         var child = std.process.Child.init(command, allocator);
         child.spawn() catch |err|
@@ -44,7 +44,7 @@ pub fn main() !void {
         if (animation.begin_time) |_| window_manager.manageDirty();
     }
 
-    wm.deinit();
+    wm.deinit(config.is_parsed);
 }
 
 fn registryListener(

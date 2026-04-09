@@ -2,6 +2,7 @@ const std = @import("std");
 const types = @import("types.zig");
 
 const Location = enum { XDG_CONFIG_HOME, HOME };
+pub var is_parsed: bool = false;
 
 fn find(allocator: std.mem.Allocator, location: Location) !types.Config {
     const env = try std.process.getEnvVarOwned(allocator, @tagName(location));
@@ -41,20 +42,20 @@ fn find(allocator: std.mem.Allocator, location: Location) !types.Config {
     );
 }
 
-pub fn load(allocator: std.mem.Allocator) ?types.Config {
+pub fn load(allocator: std.mem.Allocator) types.Config {
     xdg_config_home: {
-        var config = find(allocator, Location.XDG_CONFIG_HOME) catch |err| {
+        const config = find(allocator, Location.XDG_CONFIG_HOME) catch |err| {
             std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
             break :xdg_config_home;
         };
-        config.is_parsed_from_file = true;
+        is_parsed = true;
         return config;
     }
 
-    var config = find(allocator, Location.HOME) catch |err| {
+    const config = find(allocator, Location.HOME) catch |err| {
         std.debug.print("Failed to load config from $HOME: {}\n", .{err});
-        return null;
+        return @import("default_config");
     };
-    config.is_parsed_from_file = true;
+    is_parsed = true;
     return config;
 }

@@ -1,6 +1,6 @@
 const std = @import("std");
 const wayland = @import("wayland");
-const xkb = @import("xkbcommon");
+const xkbcommon = @import("xkbcommon");
 const river = wayland.client.river;
 
 const config = @import("config.zig");
@@ -13,10 +13,10 @@ pub fn setup(wm: *types.WindowManager) void {
         return;
     };
 
-    for (wm.xkb_binding_list.items) |item| item.destroy();
+    for (wm.xkb_binding_list.items) |item| item.river_xkb_binding.destroy();
     wm.xkb_binding_list.clearRetainingCapacity();
 
-    for (wm.config.keybindings) |*keybinding| {
+    for (wm.config.keybindings) |keybinding| {
         const keysym = parseKey(keybinding.key) orelse {
             std.debug.print("Failed to parse key\n", .{});
             continue;
@@ -30,8 +30,10 @@ pub fn setup(wm: *types.WindowManager) void {
             continue;
         };
 
-        keybinding.id = xkb_binding.getId();
-        wm.xkb_binding_list.append(wm.gpa.allocator(), xkb_binding) catch |err| {
+        wm.xkb_binding_list.append(
+            wm.gpa.allocator(),
+            .{ .river_xkb_binding = xkb_binding, .keybinding = keybinding },
+        ) catch |err| {
             std.debug.print("Failed to add xkb binding: {}\n", .{err});
             return;
         };
@@ -40,20 +42,18 @@ pub fn setup(wm: *types.WindowManager) void {
     }
 }
 
-fn parseKey(key: [:0]const u8) ?xkb.Keysym {
-    const keysym = xkb.Keysym.fromName(key, .case_insensitive);
-    if (keysym != .NoSymbol)
-        return keysym;
+fn parseKey(key: [:0]const u8) ?xkbcommon.Keysym {
+    const keysym = xkbcommon.Keysym.fromName(key, .case_insensitive);
+    if (keysym != .NoSymbol) return keysym;
     return null;
 }
 
-test "default config has no invalid keys" {
-    const default_config = types.Config{};
+test "validate default keybindings" {
+    const default_config: types.Config = @import("default_config");
     for (default_config.keybindings) |keybinding| {
-        if (parseKey(keybinding.key) == null) {
-            std.debug.print("Default config keybinding key '{s}' cannot be parsed", .{keybinding.key});
-            return error.UnknownKeybinding;
-        }
+        if (parseKey(keybinding.key) == null)
+            std.debug.print("Keysym '{s}' is not valid\n", .{keybinding.key});
+        try std.testing.expect(parseKey(keybinding.key) != null);
     }
 }
 
@@ -62,10 +62,10 @@ fn xkbBindingListener(
     event: river.XkbBindingV1.Event,
     wm: *types.WindowManager,
 ) void {
-    for (wm.config.keybindings) |keybinding| {
-        if (keybinding.id != xkb_binding.getId()) continue;
+    for (wm.xkb_binding_list.items) |item| {
+        if (item.river_xkb_binding != xkb_binding) continue;
         switch (event) {
-            .pressed => keybindingPressed(keybinding.action, wm),
+            .pressed => keybindingPressed(item.keybinding.action, wm),
             else => {},
         }
         return;
@@ -416,12 +416,12 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             }
         },
         .exit => {
-            wm.deinit();
+            wm.deinit(config.is_parsed);
             wm.river_window_manager.?.exitSession();
             return;
         },
         .reload_config => {
-            if (config.load(allocator)) |loaded_config| wm.config = loaded_config;
+            wm.config = config.load(allocator);
             setup(wm);
         },
         .spawn => |command| {

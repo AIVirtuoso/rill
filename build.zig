@@ -1,11 +1,11 @@
 const std = @import("std");
-const wayland = @import("wayland");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const pie = b.option(bool, "pie", "Build with PIE") orelse false;
-    const scanner = wayland.Scanner.create(b, .{});
+    const pie = b.option(bool, "pie", "Build position independent executable") orelse true;
+
+    const scanner = @import("wayland").Scanner.create(b, .{});
     scanner.addCustomProtocol(b.path("protocol/river-window-management-v1.xml"));
     scanner.addCustomProtocol(b.path("protocol/river-xkb-bindings-v1.xml"));
     scanner.addCustomProtocol(b.path("protocol/river-layer-shell-v1.xml"));
@@ -13,16 +13,15 @@ pub fn build(b: *std.Build) void {
     scanner.generate("river_xkb_bindings_v1", 2);
     scanner.generate("river_layer_shell_v1", 1);
 
-    const wayland_module = b.createModule(.{
-        .root_source_file = scanner.result,
-    });
-    const xkbcommon_module = b.dependency("xkbcommon", .{}).module("xkbcommon");
+    const wayland = b.createModule(.{ .root_source_file = scanner.result });
+    const xkbcommon = b.dependency("xkbcommon", .{}).module("xkbcommon");
 
     const imports = [_]std.Build.Module.Import{
-        .{ .name = "wayland", .module = wayland_module },
-        .{ .name = "xkbcommon", .module = xkbcommon_module },
+        .{ .name = "wayland", .module = wayland },
+        .{ .name = "xkbcommon", .module = xkbcommon },
     };
-    const exe = b.addExecutable(.{
+
+    const rill = b.addExecutable(.{
         .name = "rill",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
@@ -31,13 +30,17 @@ pub fn build(b: *std.Build) void {
             .imports = &imports,
         }),
     });
-    exe.pie = pie;
-    exe.root_module.linkSystemLibrary("wayland-client", .{});
-    exe.root_module.linkSystemLibrary("xkbcommon", .{});
 
-    b.installArtifact(exe);
+    const default_config = b.createModule(.{ .root_source_file = b.path("config.zon") });
+    rill.root_module.addImport("default_config", default_config);
 
-    const keybinding_tests = b.addTest(.{
+    rill.root_module.linkSystemLibrary("wayland-client", .{});
+    rill.root_module.linkSystemLibrary("xkbcommon", .{});
+    rill.pie = pie;
+
+    b.installArtifact(rill);
+
+    const tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/keybinding.zig"),
             .target = target,
@@ -45,9 +48,12 @@ pub fn build(b: *std.Build) void {
             .imports = &imports,
         }),
     });
-    keybinding_tests.root_module.linkSystemLibrary("wayland-client", .{});
-    keybinding_tests.root_module.linkSystemLibrary("xkbcommon", .{});
-    const run_tests = b.addRunArtifact(keybinding_tests);
+
+    tests.root_module.addImport("default_config", default_config);
+    tests.root_module.linkSystemLibrary("wayland-client", .{});
+    tests.root_module.linkSystemLibrary("xkbcommon", .{});
+
+    const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_tests.step);
 }
