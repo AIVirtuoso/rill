@@ -5,13 +5,14 @@ const river = wayland.client.river;
 const animation = @import("animation.zig");
 const types = @import("types.zig");
 
+const edges = river.WindowV1.Edges{
+    .top = true,
+    .bottom = true,
+    .left = true,
+    .right = true,
+};
+
 pub fn apply(output_list: *std.ArrayList(types.Output), config: types.Config) void {
-    const edges = river.WindowV1.Edges{
-        .top = true,
-        .bottom = true,
-        .left = true,
-        .right = true,
-    };
     const focused_color = config.border.focused_color.toRiverColor();
     const unfocused_color = config.border.unfocused_color.toRiverColor();
 

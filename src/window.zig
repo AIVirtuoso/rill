@@ -12,6 +12,7 @@ pub fn prepare(wm: *types.WindowManager, window: *river.WindowV1) !void {
     window.setListener(*types.WindowManager, windowListener, wm);
     window.hide();
     window.proposeDimensions(0, 0);
+    window.setTiled(.{ .top = true, .bottom = true, .left = true, .right = true });
     if (wm.config.no_csd) window.useSsd();
 }
 
