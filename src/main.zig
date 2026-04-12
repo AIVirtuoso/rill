@@ -82,7 +82,7 @@ fn windowManagerListener(
                 .workspace_list = [_]types.Workspace{.{}} ** 10,
                 .focused_workspace_idx = 0,
                 .rectangle = undefined,
-                .non_exclusive = null,
+                .non_exclusive = undefined,
             };
             wm.output_list.append(wm.gpa.allocator(), output) catch |err| {
                 std.debug.print("Failed to add output: {}\n", .{err});

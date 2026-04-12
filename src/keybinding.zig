@@ -100,9 +100,8 @@ fn keybindingPressed(action: types.Action, wm: *types.WindowManager) void {
             var window = &workspace.window_list.items[window_idx];
             if (window.is_fullscreen) return;
 
-            const non_exclusive = output.non_exclusive orelse output.rectangle;
             const gap = wm.config.horizontal_gap;
-            const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
+            const base_width: f32 = @floatFromInt(output.non_exclusive.width - gap);
             const width_with_gap: i32 =
                 @intFromFloat(base_width * (window.proportion + increment));
             if (width_with_gap - gap < 2 * wm.config.border.width) return;

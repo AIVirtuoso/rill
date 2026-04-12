@@ -55,7 +55,7 @@ pub const Output = struct {
     workspace_list: [10]Workspace,
     focused_workspace_idx: usize,
     rectangle: Rectangle,
-    non_exclusive: ?Rectangle,
+    non_exclusive: Rectangle,
 };
 
 pub const Rectangle = struct {

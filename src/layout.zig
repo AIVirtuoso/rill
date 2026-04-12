@@ -13,28 +13,11 @@ const edges = river.WindowV1.Edges{
 };
 
 pub fn apply(output_list: *std.ArrayList(types.Output), config: types.Config) void {
-    const focused_color = config.border.focused_color.toRiverColor();
-    const unfocused_color = config.border.unfocused_color.toRiverColor();
-
     for (output_list.items) |*output| {
-        const non_exclusive = output.non_exclusive orelse output.rectangle;
-        const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
-
         for (&output.workspace_list, 0..) |*workspace, workspace_idx| {
             const focused_window_idx = workspace.focused_window_idx orelse continue;
             const focused_window = &workspace.window_list.items[focused_window_idx];
-
-            var width_with_gap: i32 = @intFromFloat(base_width * focused_window.proportion);
-            const workspace_offset = @as(i32, @intCast(workspace_idx)) -
-                @as(i32, @intCast(output.focused_workspace_idx));
-            const y_offset = workspace_offset * output.rectangle.height;
-
-            var rectangle = types.Rectangle{
-                .width = width_with_gap - config.horizontal_gap,
-                .height = non_exclusive.height - 2 * config.vertical_gap,
-                .x = focused_window.rectangle.x,
-                .y = non_exclusive.y + y_offset + config.vertical_gap,
-            };
+            var rectangle: types.Rectangle = undefined;
 
             const should_center = switch (config.center_focused_window) {
                 .never => false,
@@ -42,59 +25,23 @@ pub fn apply(output_list: *std.ArrayList(types.Output), config: types.Config) vo
                 .single => workspace.window_list.items.len == 1,
             };
 
-            if (should_center) {
-                rectangle.x = non_exclusive.x +
-                    @divTrunc(non_exclusive.width, 2) - @divTrunc(rectangle.width, 2);
-            } else if (rectangle.x < non_exclusive.x + config.horizontal_gap) {
-                rectangle.x = non_exclusive.x + config.horizontal_gap;
-            } else if (rectangle.x + width_with_gap > non_exclusive.x + non_exclusive.width) {
-                rectangle.x = @max(
-                    non_exclusive.x + non_exclusive.width - width_with_gap,
-                    non_exclusive.x + config.horizontal_gap,
-                );
-            }
+            const workspace_offset = @as(i32, @intCast(workspace_idx)) -
+                @as(i32, @intCast(output.focused_workspace_idx));
+            const y_offset = workspace_offset * output.rectangle.height;
 
-            if (focused_window.is_fullscreen) {
-                rectangle = output.rectangle;
-                rectangle.y += y_offset;
-            } else {
-                focused_window.river_window.setBorders(
-                    edges,
-                    config.border.width,
-                    focused_color.r,
-                    focused_color.g,
-                    focused_color.b,
-                    focused_color.a,
-                );
-            }
-            focused_window.river_node.placeTop();
-
-            focused_window.start = focused_window.rectangle;
+            focused_window_layout(
+                focused_window,
+                &rectangle,
+                output,
+                config,
+                should_center,
+                y_offset,
+            );
             focused_window.finish = rectangle;
+
             rectangle.x += rectangle.width + config.horizontal_gap;
-
             for (workspace.window_list.items[focused_window_idx + 1 ..]) |*window| {
-                if (window.is_fullscreen) {
-                    rectangle.width = output.rectangle.width;
-                    rectangle.height = output.rectangle.height;
-                    rectangle.y = output.rectangle.y + y_offset;
-                } else {
-                    window.river_window.setBorders(
-                        edges,
-                        config.border.width,
-                        unfocused_color.r,
-                        unfocused_color.g,
-                        unfocused_color.b,
-                        unfocused_color.a,
-                    );
-
-                    width_with_gap = @intFromFloat(base_width * window.proportion);
-                    rectangle.width = width_with_gap - config.horizontal_gap;
-                    rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
-                    rectangle.y = non_exclusive.y + y_offset + config.vertical_gap;
-                }
-
-                window.start = window.rectangle;
+                unfocused_window_layout(window, &rectangle, output, config, y_offset);
                 window.finish = rectangle;
                 rectangle.x += rectangle.width + config.horizontal_gap;
             }
@@ -104,40 +51,102 @@ pub fn apply(output_list: *std.ArrayList(types.Output), config: types.Config) vo
             while (window_idx > 0) {
                 window_idx -= 1;
                 const window = &workspace.window_list.items[window_idx];
-
-                if (window.is_fullscreen) {
-                    rectangle.width = output.rectangle.width;
-                    rectangle.height = output.rectangle.height;
-                    rectangle.y = output.rectangle.y + y_offset;
-                } else {
-                    window.river_window.setBorders(
-                        edges,
-                        config.border.width,
-                        unfocused_color.r,
-                        unfocused_color.g,
-                        unfocused_color.b,
-                        unfocused_color.a,
-                    );
-
-                    width_with_gap = @intFromFloat(base_width * window.proportion);
-                    rectangle.width = width_with_gap - config.horizontal_gap;
-                    rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
-                    rectangle.y = non_exclusive.y + y_offset + config.vertical_gap;
-                }
-
+                unfocused_window_layout(window, &rectangle, output, config, y_offset);
                 rectangle.x -= config.horizontal_gap + rectangle.width;
-                window.start = window.rectangle;
                 window.finish = rectangle;
             }
 
             if (!should_center) snapToEdge(
                 workspace.window_list.items,
-                non_exclusive,
+                output.non_exclusive,
                 config.horizontal_gap,
             );
         }
     }
     animation.begin_time = std.time.milliTimestamp();
+}
+
+fn focused_window_layout(
+    window: *types.Window,
+    rectangle: *types.Rectangle,
+    output: *types.Output,
+    config: types.Config,
+    should_center: bool,
+    y_offset: i32,
+) void {
+    const non_exclusive = output.non_exclusive;
+    const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
+    const width_with_gap: i32 = @intFromFloat(base_width * window.proportion);
+
+    rectangle.* = .{
+        .width = width_with_gap - config.horizontal_gap,
+        .height = non_exclusive.height - 2 * config.vertical_gap,
+        .x = window.rectangle.x,
+        .y = non_exclusive.y + y_offset + config.vertical_gap,
+    };
+
+    if (should_center) {
+        rectangle.x = non_exclusive.x +
+            @divTrunc(non_exclusive.width, 2) - @divTrunc(rectangle.width, 2);
+    } else if (rectangle.x < non_exclusive.x + config.horizontal_gap) {
+        rectangle.x = non_exclusive.x + config.horizontal_gap;
+    } else if (rectangle.x + width_with_gap > non_exclusive.x + non_exclusive.width) {
+        rectangle.x = @max(
+            non_exclusive.x + non_exclusive.width - width_with_gap,
+            non_exclusive.x + config.horizontal_gap,
+        );
+    }
+
+    if (window.is_fullscreen) {
+        rectangle.* = output.rectangle;
+        rectangle.y += y_offset;
+    } else {
+        const focused_color = config.border.focused_color.toRiverColor();
+        window.river_window.setBorders(
+            edges,
+            config.border.width,
+            focused_color.r,
+            focused_color.g,
+            focused_color.b,
+            focused_color.a,
+        );
+    }
+
+    window.river_node.placeTop();
+    window.start = window.rectangle;
+}
+
+fn unfocused_window_layout(
+    window: *types.Window,
+    rectangle: *types.Rectangle,
+    output: *types.Output,
+    config: types.Config,
+    y_offset: i32,
+) void {
+    if (window.is_fullscreen) {
+        rectangle.width = output.rectangle.width;
+        rectangle.height = output.rectangle.height;
+        rectangle.y = output.rectangle.y + y_offset;
+    } else {
+        const unfocused_color = config.border.unfocused_color.toRiverColor();
+        window.river_window.setBorders(
+            edges,
+            config.border.width,
+            unfocused_color.r,
+            unfocused_color.g,
+            unfocused_color.b,
+            unfocused_color.a,
+        );
+
+        const non_exclusive = output.non_exclusive;
+        const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
+        const width_with_gap: i32 = @intFromFloat(base_width * window.proportion);
+
+        rectangle.width = width_with_gap - config.horizontal_gap;
+        rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
+        rectangle.y = non_exclusive.y + y_offset + config.vertical_gap;
+    }
+    window.start = window.rectangle;
 }
 
 fn snapToEdge(

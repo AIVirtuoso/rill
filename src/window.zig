@@ -24,13 +24,11 @@ fn addWindow(
 ) !void {
     const river_node = try river_window.getNode();
 
-    const non_exclusive = output.non_exclusive orelse output.rectangle;
     const gap = config.horizontal_gap;
-    const base_width: f32 = @floatFromInt(non_exclusive.width - gap);
-
+    const base_width: f32 = @floatFromInt(output.non_exclusive.width - gap);
     const proportion = config.default_window_width;
     const width_with_gap: i32 = @intFromFloat(base_width * proportion);
-    const height = non_exclusive.height - 2 * config.vertical_gap;
+    const height = output.non_exclusive.height - 2 * config.vertical_gap;
 
     const window = types.Window{
         .river_window = river_window,
@@ -41,7 +39,7 @@ fn addWindow(
             .width = width_with_gap - gap,
             .height = height,
             .x = output.rectangle.x + output.rectangle.width,
-            .y = non_exclusive.y + config.vertical_gap,
+            .y = output.non_exclusive.y + config.vertical_gap,
         },
         .start = null,
         .finish = null,
