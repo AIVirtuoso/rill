@@ -31,9 +31,6 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const default_config = b.createModule(.{ .root_source_file = b.path("config.zon") });
-    rill.root_module.addImport("default_config", default_config);
-
     rill.root_module.linkSystemLibrary("wayland-client", .{});
     rill.root_module.linkSystemLibrary("xkbcommon", .{});
     rill.pie = pie;
@@ -42,14 +39,16 @@ pub fn build(b: *std.Build) void {
 
     const tests = b.addTest(.{
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/keybinding.zig"),
+            .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &imports,
         }),
     });
 
+    const default_config = b.createModule(.{ .root_source_file = b.path("config.zon") });
     tests.root_module.addImport("default_config", default_config);
+
     tests.root_module.linkSystemLibrary("wayland-client", .{});
     tests.root_module.linkSystemLibrary("xkbcommon", .{});
 

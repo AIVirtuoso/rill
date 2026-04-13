@@ -261,3 +261,7 @@ fn layerShellSeatListener(
         else => {},
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

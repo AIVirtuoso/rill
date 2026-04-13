@@ -49,8 +49,7 @@ fn parseKey(key: [:0]const u8) ?xkbcommon.Keysym {
 }
 
 test "validate default keybindings" {
-    const default_config: types.Config = @import("default_config");
-    for (default_config.keybindings) |keybinding| {
+    for (types.default_keybindings) |keybinding| {
         if (parseKey(keybinding.key) == null)
             std.debug.print("Keysym '{s}' is not valid\n", .{keybinding.key});
         try std.testing.expect(parseKey(keybinding.key) != null);
