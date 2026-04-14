@@ -3,6 +3,7 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 
 ## Features
 * Scrolling layout
+* Floating layout
 * Workspaces
 * Animations
 * Live-reloading config
@@ -13,17 +14,17 @@ A minimalist scrolling window manager for [river](https://isaacfreund.com/softwa
 ## Installation
 You can download pre-built binary from [releases](https://codeberg.org/lzj15/rill/releases).
 
-## Usage
-[River](https://isaacfreund.com/software/river/) needs to be installed first.  
-Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or directly run `river -c rill`.
-
 ## Configuration
 Rill searches for a config file at the following locations in order:  
 `$XDG_CONFIG_HOME/rill/config.zon`  
 `$HOME/.config/rill/config.zon`  
 See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.zon) as an example.
 
-## Default Keybindings
+## Usage
+[River](https://isaacfreund.com/software/river/) needs to be installed first.  
+Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or directly run `river -c rill`.
+
+### Default Keybindings
 | Keybinding | Action |
 |----------|--------|
 | `Super` `q` | Close window |
@@ -31,25 +32,26 @@ See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.
 | `Super` `minus` | Decrease window's width by a proportion of 0.1 |
 | `Super` `equal` | Increase window's width by a proportion of 0.1 |
 | `Super` `BackSpace` | Set window's width to a proportion of 0.5 |
-| `Super` `Left` | Focus on the left window |
-| `Super` `Right` | Focus on the right window |
+| `Super` `Left` | Focus on window left |
+| `Super` `Right` | Focus on window right |
 | `Super` `Shift` `Left` | Move window to the left |
 | `Super` `Shift` `Right` | Move window to the right |
-| `Super` `Up` | Focus on the workspace above |
-| `Super` `Down` | Focus on the workspace below |
+| `Super` `v` | Toggle workspace floating |
+| `Super` `Up` | Focus on workspace above |
+| `Super` `Down` | Focus on workspace below |
 | `Super` `grave` | Focus on previous workspace |
 | `Super` `1~0` | Focus on workspace 1~10 |
-| `Super` `Shift` `Up` | Move window to the workspace above |
-| `Super` `Shift` `Down` | Move window to the workspace below |
+| `Super` `Shift` `Up` | Move window to workspace above |
+| `Super` `Shift` `Down` | Move window to workspace below |
 | `Super` `Shift` `1~0` | Move window to workspace 1~10 |
-| `Super` `h` | Focus on the left output |
-| `Super` `l` | Focus on the right output |
-| `Super` `k` | Focus on the output above |
-| `Super` `j` | Focus on the output below |
-| `Super` `Shift` `h` | Move window to the left output |
-| `Super` `Shift` `l` | Move window to the right output |
-| `Super` `Shift` `k` | Move window to the output above |
-| `Super` `Shift` `j` | Move window to the output below |
+| `Super` `h` | Focus on output left |
+| `Super` `l` | Focus on output right |
+| `Super` `k` | Focus on output above |
+| `Super` `j` | Focus on output below |
+| `Super` `Shift` `h` | Move window to output left |
+| `Super` `Shift` `l` | Move window to output right |
+| `Super` `Shift` `k` | Move window to output above |
+| `Super` `Shift` `j` | Move window to output below |
 | `Super` `Escape` | Exit river |
 | `Super` `r` | Reload config |
 | `Super` `t` | Open alacritty |
@@ -57,6 +59,12 @@ See the [default config](https://codeberg.org/lzj15/rill/src/branch/main/config.
 | `XF86AudioLowerVolume` | Lower volume of PipeWire default audio sink by 5% |
 | `XF86AudioMute` | Toggle mute for PipeWire default audio sink |
 | `XF86AudioMicMute` | Toggle mute for PipeWire default audio source |
+
+### Default Pointer Bindings
+| Pointer Binding | Action |
+|----------|--------|
+| `Super` `Left Click` | Move floating window |
+| `Super` `Right Click` | Resize floating window |
 
 ## Build
 ### Dependencies

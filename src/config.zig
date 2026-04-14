@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const types = @import("types.zig");
 
 const Location = enum { XDG_CONFIG_HOME, HOME };

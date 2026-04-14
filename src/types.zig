@@ -3,26 +3,32 @@ const wayland = @import("wayland");
 const river = wayland.client.river;
 
 pub const WindowManager = struct {
-    gpa: std.heap.DebugAllocator(.{}) = .init,
-    registry: *wayland.client.wl.Registry = undefined,
-    river_window_manager: ?*river.WindowManagerV1 = null,
-    river_xkb_bindings: ?*river.XkbBindingsV1 = null,
-    river_layer_shell: ?*river.LayerShellV1 = null,
-    river_seat: ?*river.SeatV1 = null,
-    output_list: std.ArrayList(Output) = .empty,
-    focused_output_idx: ?usize = null,
-    previous_workspace: ?struct { output_idx: usize, workspace_idx: usize } = null,
-    config: Config = .{},
+    gpa: std.heap.DebugAllocator(.{}),
+    registry: *wayland.client.wl.Registry,
+    river_window_manager: ?*river.WindowManagerV1,
+    river_xkb_bindings: ?*river.XkbBindingsV1,
+    river_layer_shell: ?*river.LayerShellV1,
+    river_seat: ?*river.SeatV1,
+    output_list: std.ArrayList(Output),
+    focused_output_idx: ?usize,
+    previous_workspace: ?struct { output_idx: usize, workspace_idx: usize },
+    status: Status,
+    config: Config,
     xkb_binding_list: std.ArrayList(struct {
         river_xkb_binding: *river.XkbBindingV1,
-        keybinding: Keybinding,
-    }) = .empty,
+        action: KeybindingAction,
+    }),
+    pointer_binding_list: std.ArrayList(struct {
+        river_pointer_binding: *river.PointerBindingV1,
+        action: PointerAction,
+    }),
 
     pub fn deinit(self: *WindowManager, config_is_parsed: bool) void {
         const allocator = self.gpa.allocator();
 
         if (config_is_parsed) std.zon.parse.free(allocator, self.config);
         self.xkb_binding_list.deinit(allocator);
+        self.pointer_binding_list.deinit(allocator);
 
         for (self.output_list.items) |*output|
             for (&output.workspace_list) |*workspace|
@@ -39,7 +45,9 @@ pub const Window = struct {
     river_node: *river.NodeV1,
     proportion: f32,
     is_fullscreen: bool,
-    rectangle: Rectangle,
+    is_closing: bool,
+    floating: Rectangle,
+    current: Rectangle,
     start: ?Rectangle,
     finish: ?Rectangle,
 };
@@ -47,6 +55,7 @@ pub const Window = struct {
 pub const Workspace = struct {
     window_list: std.ArrayList(Window) = .empty,
     focused_window_idx: ?usize = null,
+    is_floating: bool = false,
 };
 
 pub const Output = struct {
@@ -56,6 +65,7 @@ pub const Output = struct {
     focused_workspace_idx: usize,
     rectangle: Rectangle,
     non_exclusive: Rectangle,
+    is_removed: bool,
 };
 
 pub const Rectangle = struct {
@@ -63,6 +73,15 @@ pub const Rectangle = struct {
     height: i32,
     x: i32,
     y: i32,
+};
+
+pub const Status = union(enum) {
+    layout: void,
+    animation: i64,
+    pointer_action: PointerAction,
+    setup_bindings: void,
+    exit: void,
+    none: void,
 };
 
 pub const Config = struct {
@@ -79,6 +98,7 @@ pub const Config = struct {
     },
     spawn_at_startup: []const []const []const u8 = &.{},
     keybindings: []const Keybinding = &default_keybindings,
+    pointer_bindings: []const PointerBinding = &default_pointer_bindings,
 };
 
 const Border = struct { width: u8, focused_color: Color, unfocused_color: Color };
@@ -110,10 +130,10 @@ const Color = struct {
 pub const Keybinding = struct {
     key: [:0]const u8,
     modifiers: river.SeatV1.Modifiers,
-    action: Action,
+    action: KeybindingAction,
 };
 
-pub const Action = union(enum) {
+pub const KeybindingAction = union(enum) {
     close_window: void,
     toggle_fullscreen: void,
     adjust_window_width: f32,
@@ -122,6 +142,7 @@ pub const Action = union(enum) {
     focus_window_right: void,
     move_window_left: void,
     move_window_right: void,
+    toggle_workspace_floating: void,
     focus_workspace_above: void,
     focus_workspace_below: void,
     focus_workspace_previous: void,
@@ -142,6 +163,22 @@ pub const Action = union(enum) {
     spawn: []const []const u8,
 };
 
+pub const PointerBinding = struct {
+    button: Button,
+    modifiers: river.SeatV1.Modifiers,
+    action: PointerAction,
+};
+
+const c = @cImport({
+    @cInclude("linux/input-event-codes.h");
+});
+pub const Button = enum(u32) {
+    left = c.BTN_LEFT,
+    right = c.BTN_RIGHT,
+    middle = c.BTN_MIDDLE,
+};
+pub const PointerAction = enum { move_window, resize_window };
+
 pub const default_keybindings = [_]Keybinding{
     .{ .key = "q", .modifiers = .{ .mod4 = true }, .action = .close_window },
     .{ .key = "f", .modifiers = .{ .mod4 = true }, .action = .toggle_fullscreen },
@@ -154,6 +191,8 @@ pub const default_keybindings = [_]Keybinding{
     .{ .key = "Right", .modifiers = .{ .mod4 = true }, .action = .focus_window_right },
     .{ .key = "Left", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_left },
     .{ .key = "Right", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_right },
+
+    .{ .key = "v", .modifiers = .{ .mod4 = true }, .action = .toggle_workspace_floating },
 
     .{ .key = "Up", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_above },
     .{ .key = "Down", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_below },
@@ -219,4 +258,9 @@ pub const default_keybindings = [_]Keybinding{
         .modifiers = .{},
         .action = .{ .spawn = &[_][]const u8{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle" } },
     },
+};
+
+pub const default_pointer_bindings = [_]PointerBinding{
+    .{ .button = .left, .modifiers = .{ .mod4 = true }, .action = .move_window },
+    .{ .button = .right, .modifiers = .{ .mod4 = true }, .action = .resize_window },
 };

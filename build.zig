@@ -1,11 +1,12 @@
 const std = @import("std");
+const Scanner = @import("wayland").Scanner;
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const pie = b.option(bool, "pie", "Build position independent executable") orelse true;
 
-    const scanner = @import("wayland").Scanner.create(b, .{});
+    const scanner = Scanner.create(b, .{});
     scanner.addCustomProtocol(b.path("protocol/river-window-management-v1.xml"));
     scanner.addCustomProtocol(b.path("protocol/river-xkb-bindings-v1.xml"));
     scanner.addCustomProtocol(b.path("protocol/river-layer-shell-v1.xml"));

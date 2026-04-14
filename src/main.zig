@@ -7,25 +7,40 @@ const animation = @import("animation.zig");
 const config = @import("config.zig");
 const keybinding = @import("keybinding.zig");
 const layout = @import("layout.zig");
+const output = @import("output.zig");
+const seat = @import("seat.zig");
 const types = @import("types.zig");
 const window = @import("window.zig");
-
-var wm: types.WindowManager = .{};
 
 pub fn main() !void {
     const display = try wl.Display.connect(null);
     defer display.disconnect();
+
+    var wm = types.WindowManager{
+        .gpa = .init,
+        .registry = try display.getRegistry(),
+        .river_window_manager = null,
+        .river_xkb_bindings = null,
+        .river_layer_shell = null,
+        .river_seat = null,
+        .output_list = .empty,
+        .focused_output_idx = null,
+        .previous_workspace = null,
+        .config = .{},
+        .xkb_binding_list = .empty,
+        .pointer_binding_list = .empty,
+        .status = .none,
+    };
     defer wm.deinit(config.is_parsed);
 
-    wm.registry = try display.getRegistry();
-    wm.registry.setListener(?*anyopaque, registryListener, null);
+    wm.registry.setListener(*types.WindowManager, registryListener, &wm);
     _ = display.roundtrip();
 
     const window_manager = wm.river_window_manager orelse {
         std.debug.print("Failed to find window manager\n", .{});
         return;
     };
-    window_manager.setListener(?*anyopaque, windowManagerListener, null);
+    window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
     const allocator = wm.gpa.allocator();
     wm.config = config.load(allocator);
@@ -42,14 +57,14 @@ pub fn main() !void {
             std.debug.print("Window manager stopped with status: {}\n", .{status});
             break;
         }
-        if (animation.begin_time) |_| window_manager.manageDirty();
+        if (wm.status == .animation) window_manager.manageDirty();
     }
 }
 
 fn registryListener(
     registry: *wl.Registry,
     event: wl.Registry.Event,
-    _: ?*anyopaque,
+    wm: *types.WindowManager,
 ) void {
     switch (event) {
         .global => |global| {
@@ -72,29 +87,15 @@ fn registryListener(
 fn windowManagerListener(
     window_manager: *river.WindowManagerV1,
     event: river.WindowManagerV1.Event,
-    _: ?*anyopaque,
+    wm: *types.WindowManager,
 ) void {
     switch (event) {
-        .output => |output_event| {
-            const output = types.Output{
-                .river_output = output_event.id,
-                .river_layer_shell_output = getLayerShellOutput(output_event.id),
-                .workspace_list = [_]types.Workspace{.{}} ** 10,
-                .focused_workspace_idx = 0,
-                .rectangle = undefined,
-                .non_exclusive = undefined,
-            };
-            wm.output_list.append(wm.gpa.allocator(), output) catch |err| {
-                std.debug.print("Failed to add output: {}\n", .{err});
-                return;
-            };
-            wm.focused_output_idx = wm.output_list.items.len - 1;
-            output_event.id.setListener(?*anyopaque, outputListener, null);
-        },
+        .output => |output_event| output.add(output_event.id, wm) catch |err|
+            std.debug.print("Failed to add output: {}\n", .{err}),
         .seat => |seat_event| {
             wm.river_seat = seat_event.id;
-            seat_event.id.setListener(?*anyopaque, seatListener, null);
-            keybinding.setup(&wm);
+            seat_event.id.setListener(*types.WindowManager, seat.seatListener, wm);
+            wm.status = .setup_bindings;
 
             const layer_shell = wm.river_layer_shell orelse {
                 std.debug.print("Failed to find layer shell\n", .{});
@@ -104,18 +105,19 @@ fn windowManagerListener(
                 std.debug.print("Failed to get layer shell seat\n", .{});
                 return;
             };
-            layer_shell_seat.setListener(?*anyopaque, layerShellSeatListener, null);
+            layer_shell_seat.setListener(*types.WindowManager, seat.layerShellSeatListener, wm);
         },
-        .window => |window_event| window.prepare(&wm, window_event.id) catch |err|
-            std.debug.print("Failed to prepare window: {}\n", .{err}),
-        .manage_start => {
-            defer window_manager.manageFinish();
-            const seat = wm.river_seat orelse {
-                std.debug.print("Failed to find seat\n", .{});
+        .window => |window_event| {
+            layout.pending_windows.append(wm.gpa.allocator(), window_event.id) catch |err| {
+                std.debug.print("Failed to add window: {}\n", .{err});
                 return;
             };
-            if (wm.focused_output_idx) |focused_output_idx|
-                animation.apply(&wm.output_list, focused_output_idx, wm.config, seat);
+            window_event.id.setListener(*types.WindowManager, window.windowListener, wm);
+            wm.status = .layout;
+        },
+        .manage_start => {
+            manage(wm);
+            window_manager.manageFinish();
         },
         .render_start => window_manager.renderFinish(),
         .finished => window_manager.destroy(),
@@ -123,142 +125,48 @@ fn windowManagerListener(
     }
 }
 
-fn getLayerShellOutput(river_output: *river.OutputV1) ?*river.LayerShellOutputV1 {
-    const layer_shell = wm.river_layer_shell orelse {
-        std.debug.print("Failed to find layer shell\n", .{});
-        return null;
-    };
-    const layer_shell_output = layer_shell.getOutput(river_output) catch {
-        std.debug.print("Failed to get layer shell output\n", .{});
-        return null;
+fn manage(wm: *types.WindowManager) void {
+    const focused_output_idx = wm.focused_output_idx orelse return;
+    const river_seat = wm.river_seat orelse {
+        std.debug.print("Failed to find seat\n", .{});
+        return;
     };
 
-    layer_shell_output.setListener(?*anyopaque, layerShellOutputListener, null);
-    layer_shell_output.setDefault();
-    return layer_shell_output;
-}
-
-fn outputListener(
-    river_output: *river.OutputV1,
-    event: river.OutputV1.Event,
-    _: ?*anyopaque,
-) void {
-    for (wm.output_list.items, 0..) |*output, idx| {
-        if (output.river_output != river_output) continue;
-        switch (event) {
-            .dimensions => |dimensions| {
-                output.rectangle.width = dimensions.width;
-                output.rectangle.height = dimensions.height;
-            },
-            .position => |position| {
-                output.rectangle.x = position.x;
-                output.rectangle.y = position.y;
-            },
-            .removed => {
-                for (&output.workspace_list) |*workspace| {
-                    for (workspace.window_list.items) |*item|
-                        item.river_window.close();
-                    workspace.window_list.deinit(wm.gpa.allocator());
-                }
-                _ = wm.output_list.swapRemove(idx);
-
-                if (wm.output_list.items.len == 0) {
-                    wm.focused_output_idx = null;
-                    wm.previous_workspace = null;
-                } else if (wm.focused_output_idx == wm.output_list.items.len) {
-                    wm.focused_output_idx = @min(idx, wm.output_list.items.len - 1);
-                }
-
-                const previous_workspace = wm.previous_workspace orelse return;
-                if (previous_workspace.output_idx == idx) {
-                    wm.previous_workspace = null;
-                } else if (previous_workspace.output_idx == wm.output_list.items.len) {
-                    wm.previous_workspace.?.output_idx =
-                        @min(idx, wm.output_list.items.len - 1);
-                }
-            },
-            else => {},
-        }
-        return;
-    }
-}
-
-fn layerShellOutputListener(
-    layer_shell_output: *river.LayerShellOutputV1,
-    event: river.LayerShellOutputV1.Event,
-    _: ?*anyopaque,
-) void {
-    for (wm.output_list.items) |*output| {
-        if (output.river_layer_shell_output != layer_shell_output) continue;
-        switch (event) {
-            .non_exclusive_area => |area| {
-                output.non_exclusive = .{
-                    .width = area.width,
-                    .height = area.height,
-                    .x = area.x,
-                    .y = area.y,
-                };
-                layout.apply(&wm.output_list, wm.config);
-            },
-        }
-        return;
-    }
-}
-
-fn seatListener(
-    _: *river.SeatV1,
-    event: river.SeatV1.Event,
-    _: ?*anyopaque,
-) void {
-    switch (event) {
-        .window_interaction => |interaction| {
-            const output_idx = wm.focused_output_idx orelse return;
-            const output = &wm.output_list.items[output_idx];
-
-            for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
-                const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
-
-                for (target_workspace.window_list.items, 0..) |item, window_idx| {
-                    if (item.river_window != interaction.window) continue;
-
-                    if (target_output.river_layer_shell_output) |layer_shell_output|
-                        layer_shell_output.setDefault();
-                    wm.focused_output_idx = target_output_idx;
-                    target_workspace.focused_window_idx = window_idx;
-
-                    if (target_output_idx != output_idx)
-                        wm.previous_workspace = .{
-                            .output_idx = output_idx,
-                            .workspace_idx = output.focused_workspace_idx,
-                        };
-                    layout.apply(&wm.output_list, wm.config);
-                    return;
-                }
-            }
+    switch (wm.status) {
+        .layout => {
+            layout.apply(
+                &wm.output_list,
+                focused_output_idx,
+                wm.config,
+                river_seat,
+                wm.gpa.allocator(),
+            );
+            wm.status = .{ .animation = std.time.milliTimestamp() };
         },
-        else => {},
-    }
-}
-
-fn layerShellSeatListener(
-    _: *river.LayerShellSeatV1,
-    event: river.LayerShellSeatV1.Event,
-    _: ?*anyopaque,
-) void {
-    switch (event) {
-        .focus_none => {
-            const seat = wm.river_seat orelse {
-                std.debug.print("Failed to find seat\n", .{});
-                return;
-            };
-            const output_idx = wm.focused_output_idx orelse return;
-            const output = wm.output_list.items[output_idx];
-            const workspace = output.workspace_list[output.focused_workspace_idx];
-            const window_idx = workspace.focused_window_idx orelse return;
-            seat.focusWindow(workspace.window_list.items[window_idx].river_window);
+        .animation => |start_time| wm.status = animation.apply(
+            wm.output_list,
+            focused_output_idx,
+            wm.config,
+            start_time,
+        ),
+        .pointer_action => |_| {
+            river_seat.opStartPointer();
+            seat.pointerAction(wm.output_list, focused_output_idx, wm.config);
         },
-        else => {},
+        .setup_bindings => {
+            keybinding.setupKeybindings(wm) catch |err|
+                std.debug.print("Failed to setup keybindings: {}\n", .{err});
+            seat.setupPointerBindings(wm) catch |err|
+                std.debug.print("Failed to setup pointer bindings: {}\n", .{err});
+            layout.update(wm.output_list, wm.config);
+            wm.status = .layout;
+            wm.river_window_manager.?.manageDirty();
+        },
+        .exit => {
+            wm.deinit(config.is_parsed);
+            wm.river_window_manager.?.exitSession();
+        },
+        .none => river_seat.opEnd(),
     }
 }
 

@@ -51,6 +51,8 @@
         .{ .key = "Left", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_left },
         .{ .key = "Right", .modifiers = .{ .mod4 = true, .shift = true }, .action = .move_window_right },
 
+        .{ .key = "v", .modifiers = .{ .mod4 = true }, .action = .toggle_workspace_floating },
+
         .{ .key = "Up", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_above },
         .{ .key = "Down", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_below },
         .{ .key = "grave", .modifiers = .{ .mod4 = true }, .action = .focus_workspace_previous },
@@ -115,5 +117,11 @@
             .modifiers = .{},
             .action = .{ .spawn = .{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle" } },
         },
+    },
+
+    .pointer_bindings = .{
+        // Button: left, right, middle
+        .{ .button = .left, .modifiers = .{ .mod4 = true }, .action = .move_window },
+        .{ .button = .right, .modifiers = .{ .mod4 = true }, .action = .resize_window },
     },
 }
