@@ -96,6 +96,7 @@ pub const Config = struct {
         .focused_color = .{ .r = 141, .g = 214, .b = 0, .a = 1.0 },
         .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
+    cursor: ?struct { theme: [:0]const u8, size: u32 } = null,
     spawn_at_startup: []const []const []const u8 = &.{},
     keybindings: []const Keybinding = &default_keybindings,
     pointer_bindings: []const PointerBinding = &default_pointer_bindings,
@@ -127,7 +128,7 @@ const Color = struct {
     }
 };
 
-pub const Keybinding = struct {
+const Keybinding = struct {
     key: [:0]const u8,
     modifiers: river.SeatV1.Modifiers,
     action: KeybindingAction,
@@ -163,7 +164,7 @@ pub const KeybindingAction = union(enum) {
     spawn: []const []const u8,
 };
 
-pub const PointerBinding = struct {
+const PointerBinding = struct {
     button: Button,
     modifiers: river.SeatV1.Modifiers,
     action: PointerAction,
@@ -172,12 +173,12 @@ pub const PointerBinding = struct {
 const c = @cImport({
     @cInclude("linux/input-event-codes.h");
 });
-pub const Button = enum(u32) {
+const Button = enum(u32) {
     left = c.BTN_LEFT,
     right = c.BTN_RIGHT,
     middle = c.BTN_MIDDLE,
 };
-pub const PointerAction = enum { move_window, resize_window };
+const PointerAction = enum { move_window, resize_window };
 
 pub const default_keybindings = [_]Keybinding{
     .{ .key = "q", .modifiers = .{ .mod4 = true }, .action = .close_window },
@@ -260,7 +261,7 @@ pub const default_keybindings = [_]Keybinding{
     },
 };
 
-pub const default_pointer_bindings = [_]PointerBinding{
+const default_pointer_bindings = [_]PointerBinding{
     .{ .button = .left, .modifiers = .{ .mod4 = true }, .action = .move_window },
     .{ .button = .right, .modifiers = .{ .mod4 = true }, .action = .resize_window },
 };

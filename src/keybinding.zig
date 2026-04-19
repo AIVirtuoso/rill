@@ -391,6 +391,8 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
         },
         .reload_config => {
             wm.config = config.load(allocator);
+            if (wm.config.cursor) |cursor|
+                wm.river_seat.?.setXcursorTheme(cursor.theme, cursor.size);
             wm.status = .setup_bindings;
             return;
         },

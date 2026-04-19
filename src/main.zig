@@ -95,6 +95,9 @@ fn windowManagerListener(
         .seat => |seat_event| {
             wm.river_seat = seat_event.id;
             seat_event.id.setListener(*types.WindowManager, seat.seatListener, wm);
+
+            if (wm.config.cursor) |cursor|
+                seat_event.id.setXcursorTheme(cursor.theme, cursor.size);
             wm.status = .setup_bindings;
 
             const layer_shell = wm.river_layer_shell orelse {
@@ -158,6 +161,7 @@ fn manage(wm: *types.WindowManager) void {
                 std.debug.print("Failed to setup keybindings: {}\n", .{err});
             seat.setupPointerBindings(wm) catch |err|
                 std.debug.print("Failed to setup pointer bindings: {}\n", .{err});
+
             layout.update(wm.output_list, wm.config);
             wm.status = .layout;
             wm.river_window_manager.?.manageDirty();

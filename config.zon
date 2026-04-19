@@ -1,19 +1,18 @@
 .{
-    // gap between windows and the output's top/bottom edge
+    // Gap between windows and the output's top/bottom edge
     .vertical_gap = 9,
-    // gap between adjacent windows
+    // Gap between adjacent windows
     .horizontal_gap = 9,
-    // default proportion of the output's available width that a window occupies when spawned
+    // Default proportion of the output's available width that a window occupies when spawned
     .default_window_width = 0.5,
 
-    // whether to keep the focused window centered
-    // options: never, always, single
-    // Set it to "single" will center a window if it's the only window in workspace
+    // Center the focused window (never, always, single)
+    // Set it to single to center a window if it's the only window in the workspace
     .center_focused_window = .never,
 
-    // whether to disable client side decoration
+    // Disable client side decorations
     .no_csd = true,
-    // duration of animations, in milliseconds
+    // Duration of animations, in milliseconds
     .animation_duration = 200,
 
     .border = .{
@@ -22,13 +21,17 @@
         .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
 
+    // Theme and size of cursor (set it to null to use default cursor)
+    // .cursor = .{ .theme = "Adwaita", .size = 24 },
+    .cursor = null,
+
     .spawn_at_startup = .{
         // .{"awww-daemon"},
         // .{ "wl-clip-persist", "--clipboard", "both" },
     },
 
     .keybindings = .{
-        // Key: use keysym names (case insensitive) from xkbcommon-keysyms.h
+        // Key: keysym names (case insensitive) from xkbcommon-keysyms.h
         // Common ones include:
         // "Left", "Up", "Right", "Down", "BackSpace", "Tab", "Space", "Return", "Escape", "Delete",
         // "XF86MonBrightnessUp", "XF86MonBrightnessDown",
