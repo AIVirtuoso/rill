@@ -9,11 +9,12 @@ pub fn apply(
     focused_output_idx: usize,
     config: types.Config,
     start_time: i64,
+    now: i64,
 ) types.Status {
     const duration = config.animation_duration;
-    const is_last_frame = std.time.milliTimestamp() - start_time >= duration;
+    const is_last_frame = now - start_time >= duration;
 
-    const elapsed: f32 = @floatFromInt(std.time.milliTimestamp() - start_time);
+    const elapsed: f32 = @floatFromInt(now - start_time);
     const progress = elapsed / @as(f32, @floatFromInt(duration));
     const eased = 1 - std.math.pow(f32, 1 - progress, 3);
 
@@ -29,10 +30,10 @@ pub fn apply(
                     const x_distance: f32 = @floatFromInt(finish.x - start.x);
                     const y_distance: f32 = @floatFromInt(finish.y - start.y);
 
-                    const width_progress: i32 = @intFromFloat(width_distance * eased);
-                    const height_progress: i32 = @intFromFloat(height_distance * eased);
-                    const x_progress: i32 = @intFromFloat(x_distance * eased);
-                    const y_progress: i32 = @intFromFloat(y_distance * eased);
+                    const width_progress: i32 = @trunc(width_distance * eased);
+                    const height_progress: i32 = @trunc(height_distance * eased);
+                    const x_progress: i32 = @trunc(x_distance * eased);
+                    const y_progress: i32 = @trunc(y_distance * eased);
 
                     window.current = .{
                         .width = start.width + width_progress,

@@ -68,7 +68,7 @@ Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or di
 
 ## Build
 ### Dependencies
-* zig 0.15
+* zig 0.16
 * wayland
 * wayland-protocols
 * xkbcommon

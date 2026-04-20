@@ -28,7 +28,7 @@ pub fn setupKeybindings(wm: *types.WindowManager) !void {
         );
 
         try wm.xkb_binding_list.append(
-            wm.gpa.allocator(),
+            wm.init.gpa,
             .{ .river_xkb_binding = xkb_binding, .action = keybinding.action },
         );
         xkb_binding.setListener(*types.WindowManager, xkbBindingListener, wm);
@@ -72,7 +72,6 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
     const output = &wm.output_list.items[output_idx];
     const workspace_idx = output.focused_workspace_idx;
     const workspace = &output.workspace_list[workspace_idx];
-    const allocator = wm.gpa.allocator();
 
     switch (action) {
         .close_window => {
@@ -93,8 +92,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
 
             const gap = wm.config.horizontal_gap;
             const base_width: f32 = @floatFromInt(output.non_exclusive.width - gap);
-            const width_with_gap: i32 =
-                @intFromFloat(base_width * (window.proportion + increment));
+            const width_with_gap: i32 = @trunc(base_width * (window.proportion + increment));
             if (width_with_gap - gap < 2 * wm.config.border.width) return;
 
             window.proportion += increment;
@@ -184,7 +182,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                 window_idx,
                 workspace,
                 target_workspace,
-                allocator,
+                wm.init.gpa,
             );
 
             output.focused_workspace_idx = workspace_idx - 1;
@@ -202,7 +200,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                 window_idx,
                 workspace,
                 target_workspace,
-                allocator,
+                wm.init.gpa,
             );
 
             output.focused_workspace_idx = workspace_idx + 1;
@@ -220,7 +218,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                 window_idx,
                 workspace,
                 target_workspace,
-                allocator,
+                wm.init.gpa,
             );
 
             output.focused_workspace_idx = number - 1;
@@ -290,7 +288,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     window_idx,
                     workspace,
                     target_workspace,
-                    allocator,
+                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -317,7 +315,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     window_idx,
                     workspace,
                     target_workspace,
-                    allocator,
+                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -344,7 +342,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     window_idx,
                     workspace,
                     target_workspace,
-                    allocator,
+                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -371,7 +369,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     window_idx,
                     workspace,
                     target_workspace,
-                    allocator,
+                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -390,14 +388,17 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
             return;
         },
         .reload_config => {
-            wm.config = config.load(allocator);
+            wm.config = config.load(wm.init);
             if (wm.config.cursor) |cursor|
                 wm.river_seat.?.setXcursorTheme(cursor.theme, cursor.size);
+            layout.update(wm.output_list, wm.config);
+
             wm.status = .setup_bindings;
             return;
         },
         .spawn => |command| {
-            try spawn(command, allocator);
+            _ = std.process.spawn(wm.init.io, .{ .argv = command }) catch |err|
+                std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
             return;
         },
     }
@@ -425,20 +426,4 @@ fn move_window_to_workspace(
 
     try target_workspace.window_list.insert(allocator, target_window_idx, window);
     target_workspace.focused_window_idx = target_window_idx;
-}
-
-fn spawn(command: []const []const u8, allocator: std.mem.Allocator) !void {
-    const child = try allocator.create(std.process.Child);
-    errdefer allocator.destroy(child);
-
-    child.* = std.process.Child.init(command, allocator);
-    try child.spawn();
-
-    const thread = try std.Thread.spawn(.{}, wait, .{ child, allocator });
-    thread.detach();
-}
-
-fn wait(child: *std.process.Child, allocator: std.mem.Allocator) void {
-    _ = child.wait() catch {};
-    allocator.destroy(child);
 }

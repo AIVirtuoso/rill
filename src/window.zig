@@ -17,7 +17,7 @@ pub fn windowListener(
             if (window != river_window) continue;
 
             const output = &wm.output_list.items[output_idx];
-            add(window, output, wm.config, wm.gpa.allocator()) catch |err| {
+            add(window, output, wm.config, wm.init.gpa) catch |err| {
                 std.debug.print("Failed to add window: {}\n", .{err});
                 return;
             };

@@ -15,7 +15,7 @@ pub fn add(river_output: *river.OutputV1, wm: *types.WindowManager) !void {
         .non_exclusive = undefined,
         .is_removed = false,
     };
-    try wm.output_list.append(wm.gpa.allocator(), output);
+    try wm.output_list.append(wm.init.gpa, output);
     wm.focused_output_idx = wm.output_list.items.len - 1;
     river_output.setListener(*types.WindowManager, outputListener, wm);
 }

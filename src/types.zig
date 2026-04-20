@@ -3,7 +3,7 @@ const wayland = @import("wayland");
 const river = wayland.client.river;
 
 pub const WindowManager = struct {
-    gpa: std.heap.DebugAllocator(.{}),
+    init: std.process.Init,
     registry: *wayland.client.wl.Registry,
     river_window_manager: ?*river.WindowManagerV1,
     river_xkb_bindings: ?*river.XkbBindingsV1,
@@ -24,19 +24,17 @@ pub const WindowManager = struct {
     }),
 
     pub fn deinit(self: *WindowManager, config_is_parsed: bool) void {
-        const allocator = self.gpa.allocator();
+        if (config_is_parsed) std.zon.parse.free(self.init.gpa, self.config);
 
-        if (config_is_parsed) std.zon.parse.free(allocator, self.config);
-        self.xkb_binding_list.deinit(allocator);
-        self.pointer_binding_list.deinit(allocator);
+        self.xkb_binding_list.deinit(self.init.gpa);
+        self.pointer_binding_list.deinit(self.init.gpa);
 
         for (self.output_list.items) |*output|
             for (&output.workspace_list) |*workspace|
-                workspace.window_list.deinit(allocator);
-        self.output_list.deinit(allocator);
+                workspace.window_list.deinit(self.init.gpa);
+        self.output_list.deinit(self.init.gpa);
 
         self.registry.destroy();
-        _ = self.gpa.deinit();
     }
 };
 
@@ -103,6 +101,7 @@ pub const Config = struct {
 };
 
 const Border = struct { width: u8, focused_color: Color, unfocused_color: Color };
+
 const Color = struct {
     r: u8,
     g: u8,
@@ -120,10 +119,10 @@ const Color = struct {
 
         const max: f64 = @floatFromInt(std.math.maxInt(u32));
         return .{
-            .r = @intFromFloat(r * max),
-            .g = @intFromFloat(g * max),
-            .b = @intFromFloat(b * max),
-            .a = @intFromFloat(self.a * max),
+            .r = @trunc(r * max),
+            .g = @trunc(g * max),
+            .b = @trunc(b * max),
+            .a = @trunc(self.a * max),
         };
     }
 };
@@ -170,14 +169,12 @@ const PointerBinding = struct {
     action: PointerAction,
 };
 
-const c = @cImport({
-    @cInclude("linux/input-event-codes.h");
-});
 const Button = enum(u32) {
-    left = c.BTN_LEFT,
-    right = c.BTN_RIGHT,
-    middle = c.BTN_MIDDLE,
+    left = 0x110,
+    right = 0x111,
+    middle = 0x112,
 };
+
 const PointerAction = enum { move_window, resize_window };
 
 pub const default_keybindings = [_]Keybinding{

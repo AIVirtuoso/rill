@@ -5,64 +5,65 @@ const types = @import("types.zig");
 const Location = enum { XDG_CONFIG_HOME, HOME };
 pub var is_parsed: bool = false;
 
-fn find(allocator: std.mem.Allocator, location: Location) !types.Config {
-    const env = try std.process.getEnvVarOwned(allocator, @tagName(location));
-    defer allocator.free(env);
+pub fn load(init: std.process.Init) types.Config {
+    xdg_config_home: {
+        const config = find(Location.XDG_CONFIG_HOME, init) catch |err| {
+            std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
+            break :xdg_config_home;
+        };
+        return config orelse break :xdg_config_home;
+    }
+
+    const config = find(Location.HOME, init) catch |err| {
+        std.debug.print("Failed to load config from $HOME: {}\n", .{err});
+        return .{};
+    };
+    return config orelse return .{};
+}
+
+fn find(location: Location, init: std.process.Init) !?types.Config {
+    const env = init.environ_map.get(@tagName(location)) orelse return null;
 
     const path = switch (location) {
-        .XDG_CONFIG_HOME => try std.fs.path.join(allocator, &.{
+        .XDG_CONFIG_HOME => try std.fs.path.join(init.gpa, &.{
             env,
             "rill",
             "config.zon",
         }),
-        .HOME => try std.fs.path.join(allocator, &.{
+        .HOME => try std.fs.path.join(init.gpa, &.{
             env,
             ".config",
             "rill",
             "config.zon",
         }),
     };
-    defer allocator.free(path);
+    defer init.gpa.free(path);
 
-    const content = try std.fs.cwd().readFileAllocOptions(
-        allocator,
+    const content = try std.Io.Dir.cwd().readFileAllocOptions(
+        init.io,
         path,
-        1024 * 1024,
-        null,
-        std.mem.Alignment.@"1",
+        init.gpa,
+        std.Io.Limit.unlimited,
+        std.mem.Alignment.@"16",
         0,
     );
-    defer allocator.free(content);
+    defer init.gpa.free(content);
 
-    return try std.zon.parse.fromSlice(
+    const config = try std.zon.parse.fromSliceAlloc(
         types.Config,
-        allocator,
+        init.gpa,
         content,
         null,
         .{},
     );
-}
 
-pub fn load(allocator: std.mem.Allocator) types.Config {
-    xdg_config_home: {
-        const config = find(allocator, Location.XDG_CONFIG_HOME) catch |err| {
-            std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
-            break :xdg_config_home;
-        };
-        is_parsed = true;
-        return config;
-    }
-
-    const config = find(allocator, Location.HOME) catch |err| {
-        std.debug.print("Failed to load config from $HOME: {}\n", .{err});
-        return .{};
-    };
     is_parsed = true;
     return config;
 }
 
 test "validate default config file" {
     const fields = std.meta.fields(types.Config);
+
     const config_struct = types.Config{};
     const config_file: types.Config = @import("default_config");
 
@@ -75,6 +76,7 @@ test "validate default config file" {
 
         const struct_value = @field(config_struct, field.name);
         const file_value = @field(config_file, field.name);
+
         std.testing.expectEqualDeep(struct_value, file_value) catch |err| {
             std.debug.print("Value of '{s}' doesn't match\n", .{field.name});
             return err;

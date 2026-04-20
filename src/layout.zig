@@ -109,7 +109,7 @@ fn focused_window_layout(
 ) void {
     const non_exclusive = output.non_exclusive;
     const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
-    const width_with_gap: i32 = @intFromFloat(base_width * window.proportion);
+    const width_with_gap: i32 = @trunc(base_width * window.proportion);
 
     rectangle.* = .{
         .width = width_with_gap - config.horizontal_gap,
@@ -152,7 +152,7 @@ fn unfocused_window_layout(
     } else {
         const non_exclusive = output.non_exclusive;
         const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
-        const width_with_gap: i32 = @intFromFloat(base_width * window.proportion);
+        const width_with_gap: i32 = @trunc(base_width * window.proportion);
 
         rectangle.width = width_with_gap - config.horizontal_gap;
         rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
@@ -198,7 +198,7 @@ pub fn apply(
 
     for (pending_windows.items) |window| {
         if (config.no_csd) window.useSsd();
-        window.setTiled(.{ .top = true, .bottom = true, .left = true, .right = true });
+        window.setTiled(edges);
         window.hide();
         window.proposeDimensions(0, 0);
     }
@@ -269,7 +269,7 @@ pub fn initial_rectangle(
     config: types.Config,
 ) types.Rectangle {
     const base_width: f32 = @floatFromInt(non_exclusive.width - config.horizontal_gap);
-    const width_with_gap: i32 = @intFromFloat(base_width * config.default_window_width);
+    const width_with_gap: i32 = @trunc(base_width * config.default_window_width);
     return .{
         .width = width_with_gap - config.horizontal_gap,
         .height = non_exclusive.height - 2 * config.vertical_gap,

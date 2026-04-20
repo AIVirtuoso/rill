@@ -96,7 +96,7 @@ pub fn setupPointerBindings(wm: *types.WindowManager) !void {
             binding.modifiers,
         );
         try wm.pointer_binding_list.append(
-            wm.gpa.allocator(),
+            wm.init.gpa,
             .{ .river_pointer_binding = pointer_binding, .action = binding.action },
         );
         pointer_binding.setListener(*types.WindowManager, pointerBindingListener, wm);

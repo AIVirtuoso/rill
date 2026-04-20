@@ -1,7 +1,6 @@
 const std = @import("std");
 const wayland = @import("wayland");
 const river = wayland.client.river;
-const wl = wayland.client.wl;
 
 const animation = @import("animation.zig");
 const config = @import("config.zig");
@@ -12,12 +11,19 @@ const seat = @import("seat.zig");
 const types = @import("types.zig");
 const window = @import("window.zig");
 
-pub fn main() !void {
-    const display = try wl.Display.connect(null);
+pub fn main(init: std.process.Init) !void {
+    const sa = std.posix.Sigaction{
+        .handler = .{ .handler = std.posix.SIG.IGN },
+        .mask = std.posix.sigemptyset(),
+        .flags = std.posix.SA.NOCLDWAIT,
+    };
+    std.posix.sigaction(std.posix.SIG.CHLD, &sa, null);
+
+    const display = try wayland.client.wl.Display.connect(null);
     defer display.disconnect();
 
     var wm = types.WindowManager{
-        .gpa = .init,
+        .init = init,
         .registry = try display.getRegistry(),
         .river_window_manager = null,
         .river_xkb_bindings = null,
@@ -42,12 +48,9 @@ pub fn main() !void {
     };
     window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
-    const allocator = wm.gpa.allocator();
-    wm.config = config.load(allocator);
-
+    wm.config = config.load(init);
     for (wm.config.spawn_at_startup) |command| {
-        var child = std.process.Child.init(command, allocator);
-        child.spawn() catch |err|
+        _ = std.process.spawn(init.io, .{ .argv = command }) catch |err|
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
     }
 
@@ -62,8 +65,8 @@ pub fn main() !void {
 }
 
 fn registryListener(
-    registry: *wl.Registry,
-    event: wl.Registry.Event,
+    registry: *wayland.client.wl.Registry,
+    event: wayland.client.wl.Registry.Event,
     wm: *types.WindowManager,
 ) void {
     switch (event) {
@@ -74,7 +77,7 @@ fn registryListener(
                     registry.bind(global.name, river.WindowManagerV1, 4) catch null;
             } else if (std.mem.eql(u8, interface_name, "river_xkb_bindings_v1")) {
                 wm.river_xkb_bindings =
-                    registry.bind(global.name, river.XkbBindingsV1, 2) catch null;
+                    registry.bind(global.name, river.XkbBindingsV1, 1) catch null;
             } else if (std.mem.eql(u8, interface_name, "river_layer_shell_v1")) {
                 wm.river_layer_shell =
                     registry.bind(global.name, river.LayerShellV1, 1) catch null;
@@ -111,7 +114,7 @@ fn windowManagerListener(
             layer_shell_seat.setListener(*types.WindowManager, seat.layerShellSeatListener, wm);
         },
         .window => |window_event| {
-            layout.pending_windows.append(wm.gpa.allocator(), window_event.id) catch |err| {
+            layout.pending_windows.append(wm.init.gpa, window_event.id) catch |err| {
                 std.debug.print("Failed to add window: {}\n", .{err});
                 return;
             };
@@ -142,17 +145,22 @@ fn manage(wm: *types.WindowManager) void {
                 focused_output_idx,
                 wm.config,
                 river_seat,
-                wm.gpa.allocator(),
+                wm.init.gpa,
             );
-            wm.status = .{ .animation = std.time.milliTimestamp() };
+            wm.status = .{
+                .animation = std.Io.Clock.awake.now(wm.init.io).toMilliseconds(),
+            };
         },
-        .animation => |start_time| wm.status = animation.apply(
-            wm.output_list,
-            focused_output_idx,
-            wm.config,
-            start_time,
-        ),
-        .pointer_action => |_| {
+        .animation => |start_time| {
+            wm.status = animation.apply(
+                wm.output_list,
+                focused_output_idx,
+                wm.config,
+                start_time,
+                std.Io.Clock.awake.now(wm.init.io).toMilliseconds(),
+            );
+        },
+        .pointer_action => {
             river_seat.opStartPointer();
             seat.pointerAction(wm.output_list, focused_output_idx, wm.config);
         },
@@ -162,7 +170,6 @@ fn manage(wm: *types.WindowManager) void {
             seat.setupPointerBindings(wm) catch |err|
                 std.debug.print("Failed to setup pointer bindings: {}\n", .{err});
 
-            layout.update(wm.output_list, wm.config);
             wm.status = .layout;
             wm.river_window_manager.?.manageDirty();
         },
