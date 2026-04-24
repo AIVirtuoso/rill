@@ -194,6 +194,8 @@ pub fn apply(
     river_seat: *river.SeatV1,
     allocator: std.mem.Allocator,
 ) void {
+    river_seat.clearFocus();
+
     for (pending_windows.items) |window| {
         if (config.no_csd) window.useSsd();
         window.setTiled(.{ .top = true, .bottom = true, .left = true, .right = true });
