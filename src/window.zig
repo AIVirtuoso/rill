@@ -11,12 +11,12 @@ pub fn windowListener(
     wm: *types.WindowManager,
 ) void {
     const output_idx = wm.focused_output_idx orelse return;
-    const output = &wm.output_list.items[output_idx];
 
     if (event == .dimensions) {
         for (layout.pending_windows.items, 0..) |window, idx| {
             if (window != river_window) continue;
 
+            const output = &wm.output_list.items[output_idx];
             add(window, output, wm.config, wm.gpa.allocator()) catch |err| {
                 std.debug.print("Failed to add window: {}\n", .{err});
                 return;
@@ -30,31 +30,33 @@ pub fn windowListener(
         }
     }
 
-    for (&output.workspace_list) |*workspace| {
-        const window_idx = workspace.focused_window_idx orelse continue;
+    for (wm.output_list.items) |*output| {
+        for (&output.workspace_list) |*workspace| {
+            const window_idx = workspace.focused_window_idx orelse continue;
 
-        for (workspace.window_list.items, 0..) |*window, idx| {
-            if (window.river_window != river_window) continue;
+            for (workspace.window_list.items, 0..) |*window, idx| {
+                if (window.river_window != river_window) continue;
 
-            switch (event) {
-                .closed => {
-                    if (workspace.window_list.items.len == 1) {
-                        workspace.focused_window_idx = null;
-                    } else if (idx <= window_idx and window_idx != 0) {
-                        workspace.focused_window_idx = window_idx - 1;
-                    }
+                switch (event) {
+                    .closed => {
+                        if (workspace.window_list.items.len == 1) {
+                            workspace.focused_window_idx = null;
+                        } else if (idx <= window_idx and window_idx != 0) {
+                            workspace.focused_window_idx = window_idx - 1;
+                        }
 
-                    _ = workspace.window_list.orderedRemove(idx);
-                    river_window.destroy();
-                },
-                .fullscreen_requested => window.is_fullscreen = true,
-                .exit_fullscreen_requested => window.is_fullscreen = false,
-                else => return,
+                        _ = workspace.window_list.orderedRemove(idx);
+                        river_window.destroy();
+                    },
+                    .fullscreen_requested => window.is_fullscreen = true,
+                    .exit_fullscreen_requested => window.is_fullscreen = false,
+                    else => return,
+                }
+
+                layout.update(wm.output_list, wm.config);
+                wm.status = .layout;
+                return;
             }
-
-            layout.update(wm.output_list, wm.config);
-            wm.status = .layout;
-            return;
         }
     }
 }
