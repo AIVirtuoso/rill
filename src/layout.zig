@@ -233,11 +233,6 @@ pub fn apply(
                 );
 
                 if (window.is_closing) window.river_window.close();
-                if (window.is_fullscreen) {
-                    window.river_window.informFullscreen();
-                } else {
-                    window.river_window.informNotFullscreen();
-                }
 
                 if (output_idx != focused_output_idx) continue;
                 if (workspace_idx != output.focused_workspace_idx) continue;

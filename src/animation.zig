@@ -46,14 +46,19 @@ pub fn apply(
                     window.current = finish;
                     placeWindow(window, output.rectangle, config);
 
+                    if (window.is_fullscreen) {
+                        const is_focused = output_idx == focused_output_idx and
+                            workspace_idx == output.focused_workspace_idx and
+                            window_idx == workspace.focused_window_idx;
+
+                        if (is_focused) window.river_window.fullscreen(output.river_output);
+                        window.river_window.informFullscreen();
+                    } else {
+                        window.river_window.informNotFullscreen();
+                    }
+
                     window.start = null;
                     window.finish = null;
-
-                    if (output_idx != focused_output_idx) continue;
-                    if (workspace_idx != output.focused_workspace_idx) continue;
-                    if (window_idx != workspace.focused_window_idx) continue;
-                    if (window.is_fullscreen)
-                        window.river_window.fullscreen(output.river_output);
                 }
             }
         }

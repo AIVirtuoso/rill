@@ -48,8 +48,14 @@ pub fn windowListener(
                         _ = workspace.window_list.orderedRemove(idx);
                         river_window.destroy();
                     },
-                    .fullscreen_requested => window.is_fullscreen = true,
-                    .exit_fullscreen_requested => window.is_fullscreen = false,
+                    .fullscreen_requested => {
+                        if (wm.status != .none) return;
+                        window.is_fullscreen = true;
+                    },
+                    .exit_fullscreen_requested => {
+                        if (wm.status != .none) return;
+                        window.is_fullscreen = false;
+                    },
                     else => return,
                 }
 
