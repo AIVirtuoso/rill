@@ -4,6 +4,8 @@ const Scanner = @import("wayland").Scanner;
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const strip = b.option(bool, "strip", "Strip debug information") orelse false;
     const pie = b.option(bool, "pie", "Build position independent executable") orelse true;
 
     const scanner = Scanner.create(b, .{});
@@ -27,6 +29,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .imports = &imports,
+        .strip = strip,
     });
     rill.linkSystemLibrary("wayland-client", .{});
     rill.linkSystemLibrary("xkbcommon", .{});
