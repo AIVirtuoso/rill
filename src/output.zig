@@ -1,11 +1,12 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
-pub fn add(river_output: *river.OutputV1, wm: *types.WindowManager) !void {
+pub fn add(allocator: Allocator, river_output: *river.OutputV1, wm: *types.WindowManager) !void {
     const output = types.Output{
         .river_output = river_output,
         .river_layer_shell_output = getLayerShellOutput(river_output, wm),
@@ -15,7 +16,7 @@ pub fn add(river_output: *river.OutputV1, wm: *types.WindowManager) !void {
         .non_exclusive = undefined,
         .is_removed = false,
     };
-    try wm.output_list.append(wm.init.gpa, output);
+    try wm.output_list.append(allocator, output);
     wm.focused_output_idx = wm.output_list.items.len - 1;
     river_output.setListener(*types.WindowManager, outputListener, wm);
 }

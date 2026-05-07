@@ -1,4 +1,6 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+const Io = std.Io;
 const wayland = @import("wayland");
 const xkbcommon = @import("xkbcommon");
 const river = wayland.client.river;
@@ -7,7 +9,7 @@ const config = @import("config.zig");
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
-pub fn setupKeybindings(wm: *types.WindowManager) !void {
+pub fn setupKeybindings(allocator: Allocator, wm: *types.WindowManager) !void {
     for (wm.xkb_binding_list.items) |binding| binding.river_xkb_binding.destroy();
     wm.xkb_binding_list.clearRetainingCapacity();
 
@@ -28,7 +30,7 @@ pub fn setupKeybindings(wm: *types.WindowManager) !void {
         );
 
         try wm.xkb_binding_list.append(
-            wm.init.gpa,
+            allocator,
             .{ .river_xkb_binding = xkb_binding, .action = keybinding.action },
         );
         xkb_binding.setListener(*types.WindowManager, xkbBindingListener, wm);
@@ -59,7 +61,7 @@ fn xkbBindingListener(
     for (wm.xkb_binding_list.items) |binding| {
         if (binding.river_xkb_binding != xkb_binding) continue;
         switch (event) {
-            .pressed => keybindingPressed(binding.action, wm) catch |err|
+            .pressed => keybindingPressed(wm.allocator, wm.io, binding.action, wm, wm.environ_map) catch |err|
                 std.debug.print("Keybinding's action failed: {}\n", .{err}),
             else => {},
         }
@@ -67,7 +69,13 @@ fn xkbBindingListener(
     }
 }
 
-fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !void {
+fn keybindingPressed(
+    allocator: Allocator,
+    io: Io,
+    action: types.KeybindingAction,
+    wm: *types.WindowManager,
+    environ_map: std.process.Environ.Map,
+) !void {
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
     const workspace_idx = output.focused_workspace_idx;
@@ -179,10 +187,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
             const target_workspace = &output.workspace_list[workspace_idx - 1];
 
             try move_window_to_workspace(
+                allocator,
                 window_idx,
                 workspace,
                 target_workspace,
-                wm.init.gpa,
             );
 
             output.focused_workspace_idx = workspace_idx - 1;
@@ -197,10 +205,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
             const target_workspace = &output.workspace_list[workspace_idx + 1];
 
             try move_window_to_workspace(
+                allocator,
                 window_idx,
                 workspace,
                 target_workspace,
-                wm.init.gpa,
             );
 
             output.focused_workspace_idx = workspace_idx + 1;
@@ -215,10 +223,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
             const target_workspace = &output.workspace_list[number - 1];
 
             try move_window_to_workspace(
+                allocator,
                 window_idx,
                 workspace,
                 target_workspace,
-                wm.init.gpa,
             );
 
             output.focused_workspace_idx = number - 1;
@@ -285,10 +293,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     &target_output.workspace_list[target_output.focused_workspace_idx];
 
                 try move_window_to_workspace(
+                    allocator,
                     window_idx,
                     workspace,
                     target_workspace,
-                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -312,10 +320,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     &target_output.workspace_list[target_output.focused_workspace_idx];
 
                 try move_window_to_workspace(
+                    allocator,
                     window_idx,
                     workspace,
                     target_workspace,
-                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -339,10 +347,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     &target_output.workspace_list[target_output.focused_workspace_idx];
 
                 try move_window_to_workspace(
+                    allocator,
                     window_idx,
                     workspace,
                     target_workspace,
-                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -366,10 +374,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
                     &target_output.workspace_list[target_output.focused_workspace_idx];
 
                 try move_window_to_workspace(
+                    allocator,
                     window_idx,
                     workspace,
                     target_workspace,
-                    wm.init.gpa,
                 );
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
@@ -388,7 +396,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
             return;
         },
         .reload_config => {
-            wm.config = config.load(wm.init);
+            wm.config = config.load(allocator, io, environ_map);
             if (wm.config.cursor) |cursor|
                 wm.river_seat.?.setXcursorTheme(cursor.theme, cursor.size);
             layout.update(wm.output_list, wm.config);
@@ -397,7 +405,7 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
             return;
         },
         .spawn => |command| {
-            _ = std.process.spawn(wm.init.io, .{ .argv = command }) catch |err|
+            _ = std.process.spawn(io, .{ .argv = command }) catch |err|
                 std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
             return;
         },
@@ -408,10 +416,10 @@ fn keybindingPressed(action: types.KeybindingAction, wm: *types.WindowManager) !
 }
 
 fn move_window_to_workspace(
+    allocator: Allocator,
     window_idx: usize,
     workspace: *types.Workspace,
     target_workspace: *types.Workspace,
-    allocator: std.mem.Allocator,
 ) !void {
     const window = workspace.window_list.orderedRemove(window_idx);
 

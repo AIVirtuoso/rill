@@ -1,9 +1,13 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+const Io = std.Io;
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
 pub const WindowManager = struct {
-    init: std.process.Init,
+    allocator: Allocator,
+    io: Io,
+    environ_map: std.process.Environ.Map,
     registry: *wayland.client.wl.Registry,
     river_window_manager: ?*river.WindowManagerV1,
     river_xkb_bindings: ?*river.XkbBindingsV1,
@@ -24,15 +28,15 @@ pub const WindowManager = struct {
     }),
 
     pub fn deinit(self: *WindowManager, config_is_parsed: bool) void {
-        if (config_is_parsed) std.zon.parse.free(self.init.gpa, self.config);
+        if (config_is_parsed) std.zon.parse.free(self.allocator, self.config);
 
-        self.xkb_binding_list.deinit(self.init.gpa);
-        self.pointer_binding_list.deinit(self.init.gpa);
+        self.xkb_binding_list.deinit(self.allocator);
+        self.pointer_binding_list.deinit(self.allocator);
 
         for (self.output_list.items) |*output|
             for (&output.workspace_list) |*workspace|
-                workspace.window_list.deinit(self.init.gpa);
-        self.output_list.deinit(self.init.gpa);
+                workspace.window_list.deinit(self.allocator);
+        self.output_list.deinit(self.allocator);
 
         self.registry.destroy();
     }

@@ -1,6 +1,4 @@
 const std = @import("std");
-const wayland = @import("wayland");
-const river = wayland.client.river;
 
 const types = @import("types.zig");
 

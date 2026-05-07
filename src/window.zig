@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -17,7 +18,7 @@ pub fn windowListener(
             if (window != river_window) continue;
 
             const output = &wm.output_list.items[output_idx];
-            add(window, output, wm.config, wm.init.gpa) catch |err| {
+            add(wm.allocator, window, output, wm.config) catch |err| {
                 std.debug.print("Failed to add window: {}\n", .{err});
                 return;
             };
@@ -68,10 +69,10 @@ pub fn windowListener(
 }
 
 fn add(
+    allocator: Allocator,
     river_window: *river.WindowV1,
     output: *types.Output,
     config: types.Config,
-    allocator: std.mem.Allocator,
 ) !void {
     const window = types.Window{
         .river_window = river_window,

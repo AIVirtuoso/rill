@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -188,11 +189,11 @@ fn snapToEdge(
 }
 
 pub fn apply(
+    allocator: Allocator,
     output_list: *std.ArrayList(types.Output),
     focused_output_idx: usize,
     config: types.Config,
     river_seat: *river.SeatV1,
-    allocator: std.mem.Allocator,
 ) void {
     river_seat.clearFocus();
 

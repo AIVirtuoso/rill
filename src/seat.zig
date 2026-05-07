@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -86,7 +87,7 @@ pub fn seatListener(
     }
 }
 
-pub fn setupPointerBindings(wm: *types.WindowManager) !void {
+pub fn setupPointerBindings(allocator: Allocator, wm: *types.WindowManager) !void {
     for (wm.pointer_binding_list.items) |binding| binding.river_pointer_binding.destroy();
     wm.pointer_binding_list.clearRetainingCapacity();
 
@@ -96,7 +97,7 @@ pub fn setupPointerBindings(wm: *types.WindowManager) !void {
             binding.modifiers,
         );
         try wm.pointer_binding_list.append(
-            wm.init.gpa,
+            allocator,
             .{ .river_pointer_binding = pointer_binding, .action = binding.action },
         );
         pointer_binding.setListener(*types.WindowManager, pointerBindingListener, wm);
