@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
 const wayland = @import("wayland");
 const river = wayland.client.river;
 

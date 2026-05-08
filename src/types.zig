@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
+
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -33,9 +34,11 @@ pub const WindowManager = struct {
         self.xkb_binding_list.deinit(self.allocator);
         self.pointer_binding_list.deinit(self.allocator);
 
-        for (self.output_list.items) |*output|
-            for (&output.workspace_list) |*workspace|
+        for (self.output_list.items) |*output| {
+            for (&output.workspace_list) |*workspace| {
                 workspace.window_list.deinit(self.allocator);
+            }
+        }
         self.output_list.deinit(self.allocator);
 
         self.registry.destroy();

@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -80,8 +81,8 @@ fn add(
         .proportion = config.default_window_width,
         .is_fullscreen = false,
         .is_closing = false,
-        .floating = layout.initial_rectangle(output.non_exclusive, config),
-        .current = layout.initial_rectangle(output.non_exclusive, config),
+        .floating = layout.initialRectangle(output.non_exclusive, config),
+        .current = layout.initialRectangle(output.non_exclusive, config),
         .start = null,
         .finish = null,
     };

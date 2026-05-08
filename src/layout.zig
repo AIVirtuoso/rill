@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -22,7 +23,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
             const y_offset = workspace_offset * output.rectangle.height;
 
             if (workspace.is_floating) {
-                floating_layout(workspace.window_list, output, y_offset);
+                floatingLayout(workspace.window_list, output, y_offset);
                 continue;
             }
 
@@ -36,7 +37,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
                 .single => workspace.window_list.items.len == 1,
             };
 
-            focused_window_layout(
+            focusedWindowLayout(
                 focused_window,
                 &rectangle,
                 output,
@@ -48,7 +49,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
 
             rectangle.x += rectangle.width + config.horizontal_gap;
             for (workspace.window_list.items[focused_window_idx + 1 ..]) |*window| {
-                unfocused_window_layout(
+                unfocusedWindowLayout(
                     window,
                     &rectangle,
                     output,
@@ -64,7 +65,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
             while (window_idx > 0) {
                 window_idx -= 1;
                 const window = &workspace.window_list.items[window_idx];
-                unfocused_window_layout(
+                unfocusedWindowLayout(
                     window,
                     &rectangle,
                     output,
@@ -84,7 +85,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
     }
 }
 
-fn floating_layout(
+fn floatingLayout(
     window_list: std.ArrayList(types.Window),
     output: *types.Output,
     y_offset: i32,
@@ -100,7 +101,7 @@ fn floating_layout(
     }
 }
 
-fn focused_window_layout(
+fn focusedWindowLayout(
     window: *types.Window,
     rectangle: *types.Rectangle,
     output: *types.Output,
@@ -139,7 +140,7 @@ fn focused_window_layout(
     window.start = window.current;
 }
 
-fn unfocused_window_layout(
+fn unfocusedWindowLayout(
     window: *types.Window,
     rectangle: *types.Rectangle,
     output: *types.Output,
@@ -211,8 +212,9 @@ pub fn apply(
 
         if (output.is_removed) {
             for (&output.workspace_list) |*workspace| {
-                for (workspace.window_list.items) |window|
+                for (workspace.window_list.items) |window| {
                     window.river_window.close();
+                }
                 workspace.window_list.deinit(allocator);
             }
             _ = output_list.swapRemove(output_idx);
@@ -255,12 +257,13 @@ pub fn apply(
         }
 
         if (output_idx != focused_output_idx) continue;
-        if (output.river_layer_shell_output) |layer_shell_output|
+        if (output.river_layer_shell_output) |layer_shell_output| {
             layer_shell_output.setDefault();
+        }
     }
 }
 
-pub fn initial_rectangle(
+pub fn initialRectangle(
     non_exclusive: types.Rectangle,
     config: types.Config,
 ) types.Rectangle {

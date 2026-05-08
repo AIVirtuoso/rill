@@ -1,12 +1,17 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
 const layout = @import("layout.zig");
 const types = @import("types.zig");
 
-pub fn add(allocator: Allocator, river_output: *river.OutputV1, wm: *types.WindowManager) !void {
+pub fn add(
+    allocator: Allocator,
+    river_output: *river.OutputV1,
+    wm: *types.WindowManager,
+) !void {
     const output = types.Output{
         .river_output = river_output,
         .river_layer_shell_output = getLayerShellOutput(river_output, wm),

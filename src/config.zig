@@ -7,23 +7,32 @@ const types = @import("types.zig");
 const Location = enum { XDG_CONFIG_HOME, HOME };
 pub var is_parsed: bool = false;
 
-pub fn load(allocator: Allocator, io: Io, environ_map: std.process.Environ.Map) types.Config {
+pub fn load(
+    allocator: Allocator,
+    io: Io,
+    environ_map: std.process.Environ.Map,
+) types.Config {
     xdg_config_home: {
-        const config = find(allocator, io, Location.XDG_CONFIG_HOME, environ_map) catch |err| {
+        const config = find(allocator, io, .XDG_CONFIG_HOME, environ_map) catch |err| {
             std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
             break :xdg_config_home;
         };
         return config orelse break :xdg_config_home;
     }
 
-    const config = find(allocator, io, Location.HOME, environ_map) catch |err| {
+    const config = find(allocator, io, .HOME, environ_map) catch |err| {
         std.debug.print("Failed to load config from $HOME: {}\n", .{err});
         return .{};
     };
     return config orelse return .{};
 }
 
-fn find(allocator: Allocator, io: Io, location: Location, environ_map: std.process.Environ.Map) !?types.Config {
+fn find(
+    allocator: Allocator,
+    io: Io,
+    location: Location,
+    environ_map: std.process.Environ.Map,
+) !?types.Config {
     const env = environ_map.get(@tagName(location)) orelse return null;
 
     const path = switch (location) {
@@ -45,8 +54,8 @@ fn find(allocator: Allocator, io: Io, location: Location, environ_map: std.proce
         io,
         path,
         allocator,
-        Io.Limit.unlimited,
-        std.mem.Alignment.@"16",
+        .unlimited,
+        .@"16",
         0,
     );
     defer allocator.free(content);

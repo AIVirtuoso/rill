@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
+
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
@@ -14,9 +15,6 @@ const types = @import("types.zig");
 const window = @import("window.zig");
 
 pub fn main(init: std.process.Init) !void {
-    const gpa = init.gpa;
-    const io = init.io;
-
     const sa = std.posix.Sigaction{
         .handler = .{ .handler = std.posix.SIG.IGN },
         .mask = std.posix.sigemptyset(),
@@ -28,8 +26,8 @@ pub fn main(init: std.process.Init) !void {
     defer display.disconnect();
 
     var wm = types.WindowManager{
-        .allocator = gpa,
-        .io = io,
+        .allocator = init.gpa,
+        .io = init.io,
         .environ_map = init.environ_map.*,
         .registry = try display.getRegistry(),
         .river_window_manager = null,
@@ -55,10 +53,11 @@ pub fn main(init: std.process.Init) !void {
     };
     window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
-    wm.config = config.load(gpa, io, init.environ_map.*);
+    wm.config = config.load(wm.allocator, wm.io, wm.environ_map);
     for (wm.config.spawn_at_startup) |command| {
-        _ = std.process.spawn(io, .{ .argv = command }) catch |err|
+        _ = std.process.spawn(wm.io, .{ .argv = command }) catch |err| {
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+        };
     }
 
     while (true) {
@@ -106,8 +105,9 @@ fn windowManagerListener(
             wm.river_seat = seat_event.id;
             seat_event.id.setListener(*types.WindowManager, seat.seatListener, wm);
 
-            if (wm.config.cursor) |cursor|
+            if (wm.config.cursor) |cursor| {
                 seat_event.id.setXcursorTheme(cursor.theme, cursor.size);
+            }
             wm.status = .setup_bindings;
 
             const layer_shell = wm.river_layer_shell orelse {
@@ -172,10 +172,12 @@ fn manage(allocator: Allocator, io: Io, wm: *types.WindowManager) void {
             seat.pointerAction(wm.output_list, focused_output_idx, wm.config);
         },
         .setup_bindings => {
-            keybinding.setupKeybindings(allocator, wm) catch |err|
+            keybinding.setupKeybindings(allocator, wm) catch |err| {
                 std.debug.print("Failed to setup keybindings: {}\n", .{err});
-            seat.setupPointerBindings(allocator, wm) catch |err|
+            };
+            seat.setupPointerBindings(allocator, wm) catch |err| {
                 std.debug.print("Failed to setup pointer bindings: {}\n", .{err});
+            };
 
             wm.status = .layout;
             wm.river_window_manager.?.manageDirty();
