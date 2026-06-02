@@ -22,6 +22,17 @@ pub fn main(init: std.process.Init) !void {
     };
     std.posix.sigaction(std.posix.SIG.CHLD, &sa, null);
 
+    // Die when our parent (typically river -c rill) dies, so we don't
+    // get reparented to init and outlive the session if river crashes
+    // or is killed.
+    _ = std.os.linux.prctl(
+        @intFromEnum(std.os.linux.PR.SET_PDEATHSIG),
+        @intCast(@intFromEnum(std.posix.SIG.TERM)),
+        0,
+        0,
+        0,
+    );
+
     const display = try wayland.client.wl.Display.connect(null);
     defer display.disconnect();
 
