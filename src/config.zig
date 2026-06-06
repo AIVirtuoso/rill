@@ -5,13 +5,12 @@ const Io = std.Io;
 const types = @import("types.zig");
 
 const Location = enum { XDG_CONFIG_HOME, HOME };
-pub var is_parsed: bool = false;
 
 pub fn load(
     allocator: Allocator,
     io: Io,
     environ_map: std.process.Environ.Map,
-) types.Config {
+) ?*types.Config {
     xdg_config_home: {
         const config = find(allocator, io, .XDG_CONFIG_HOME, environ_map) catch |err| {
             std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
@@ -22,9 +21,9 @@ pub fn load(
 
     const config = find(allocator, io, .HOME, environ_map) catch |err| {
         std.debug.print("Failed to load config from $HOME: {}\n", .{err});
-        return .{};
+        return null;
     };
-    return config orelse return .{};
+    return config;
 }
 
 fn find(
@@ -32,7 +31,7 @@ fn find(
     io: Io,
     location: Location,
     environ_map: std.process.Environ.Map,
-) !?types.Config {
+) !?*types.Config {
     const env = environ_map.get(@tagName(location)) orelse return null;
 
     const path = switch (location) {
@@ -61,14 +60,13 @@ fn find(
     defer allocator.free(content);
 
     const config = try std.zon.parse.fromSliceAlloc(
-        types.Config,
+        *types.Config,
         allocator,
         content,
         null,
         .{},
     );
 
-    is_parsed = true;
     return config;
 }
 
