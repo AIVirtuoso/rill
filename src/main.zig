@@ -25,6 +25,8 @@ pub fn main(init: std.process.Init) !void {
     const display = try wayland.client.wl.Display.connect(null);
     defer display.disconnect();
 
+    const cfg = config.load(init.gpa, init.io, init.environ_map.*);
+
     var wm = types.WindowManager{
         .allocator = init.gpa,
         .io = init.io,
@@ -37,7 +39,7 @@ pub fn main(init: std.process.Init) !void {
         .output_list = .empty,
         .focused_output_idx = null,
         .previous_workspace = null,
-        .config = null,
+        .config = cfg,
         .xkb_binding_list = .empty,
         .pointer_binding_list = .empty,
         .status = .none,
@@ -53,7 +55,6 @@ pub fn main(init: std.process.Init) !void {
     };
     window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
-    wm.config = config.load(wm.allocator, wm.io, wm.environ_map);
     for (wm.getConfig().spawn_at_startup) |command| {
         _ = std.process.spawn(wm.io, .{ .argv = command }) catch |err| {
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
