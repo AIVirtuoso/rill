@@ -407,7 +407,14 @@ fn keybindingPressed(
             return;
         },
         .reload_config => {
-            wm.config = config.load(allocator, io, environ_map);
+            const old_config = wm.config;
+            const new_config = config.load(allocator, io, environ_map) orelse return;
+
+            wm.config = new_config;
+
+            if (old_config) |cfg|
+                std.zon.parse.free(wm.allocator, cfg);
+
             if (wm.getConfig().cursor) |cursor| {
                 wm.river_seat.?.setXcursorTheme(cursor.theme, cursor.size);
             }
