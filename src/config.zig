@@ -11,19 +11,17 @@ pub fn load(
     io: Io,
     environ_map: std.process.Environ.Map,
 ) ?*types.Config {
-    xdg_config_home: {
-        const config = find(allocator, io, .XDG_CONFIG_HOME, environ_map) catch |err| {
-            std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
-            break :xdg_config_home;
-        };
-        return config orelse break :xdg_config_home;
-    }
+    if(find(allocator, io, .XDG_CONFIG_HOME, environ_map)) |config| {
+        return config;
+    } else |err|
+        std.debug.print("Failed to load config from $XDG_CONFIG_HOME: {}\n", .{err});
 
-    const config = find(allocator, io, .HOME, environ_map) catch |err| {
+    if(find(allocator, io, .HOME, environ_map)) |config| {
+        return config;
+    } else |err|
         std.debug.print("Failed to load config from $HOME: {}\n", .{err});
-        return null;
-    };
-    return config;
+
+    return null;
 }
 
 fn find(
@@ -31,8 +29,8 @@ fn find(
     io: Io,
     location: Location,
     environ_map: std.process.Environ.Map,
-) !?*types.Config {
-    const env = environ_map.get(@tagName(location)) orelse return null;
+) !*types.Config {
+    const env = environ_map.get(@tagName(location)) orelse return error.FileNotFound;
 
     const path = switch (location) {
         .XDG_CONFIG_HOME => try Io.Dir.path.join(allocator, &.{
