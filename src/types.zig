@@ -151,6 +151,8 @@ pub const KeybindingAction = union(enum) {
     focus_window_or_output_right: void,
     move_window_left: void,
     move_window_right: void,
+    move_window_left_or_to_output_left: void,
+    move_window_right_or_to_output_right: void,
     toggle_workspace_floating: void,
     focus_workspace_above: void,
     focus_workspace_below: void,

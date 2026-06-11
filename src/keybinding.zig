@@ -170,6 +170,20 @@ fn keybindingPressed(
             );
             workspace.focused_window_idx = window_idx + 1;
         },
+        .move_window_left_or_to_output_left => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (window_idx == 0) {
+                continue :action_switch .move_window_to_output_left;
+            }
+            continue :action_switch .move_window_left;
+        },
+        .move_window_right_or_to_output_right => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (window_idx == workspace.window_list.items.len - 1) {
+                continue :action_switch .move_window_to_output_right;
+            }
+            continue :action_switch .move_window_right;
+        },
         .toggle_workspace_floating => workspace.is_floating = !workspace.is_floating,
         .focus_workspace_above => {
             if (workspace_idx == 0) return;
