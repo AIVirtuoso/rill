@@ -103,6 +103,12 @@ fn keybindingPressed(
             const window = &workspace.window_list.items[window_idx];
             window.is_fullscreen = !window.is_fullscreen;
         },
+        .toggle_maximize_column => {
+            if (workspace.is_floating) return;
+            const window_idx = workspace.focused_window_idx orelse return;
+            var window = &workspace.window_list.items[window_idx];
+            window.proportion = if (window.proportion == 1.0) 0.5 else 1.0;
+        },
         .adjust_window_width => |increment| {
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;

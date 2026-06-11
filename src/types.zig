@@ -143,6 +143,7 @@ const Keybinding = struct {
 pub const KeybindingAction = union(enum) {
     close_window: void,
     toggle_fullscreen: void,
+    toggle_maximize_column: void,
     adjust_window_width: f32,
     set_window_width: f32,
     focus_window_left: void,
