@@ -201,6 +201,18 @@ fn keybindingPressed(
                 .workspace_idx = workspace_idx,
             };
         },
+        .focus_workspace_or_output_above => {
+            if (workspace_idx == 0) {
+                continue :action_switch .focus_output_above;
+            }
+            continue :action_switch .focus_workspace_above;
+        },
+        .focus_workspace_or_output_below => {
+            if (workspace_idx == 9) {
+                continue :action_switch .focus_output_below;
+            }
+            continue :action_switch .focus_workspace_below;
+        },
         .focus_workspace_previous => {
             const previous = wm.previous_workspace orelse return;
             wm.focused_output_idx = previous.output_idx;
@@ -255,6 +267,18 @@ fn keybindingPressed(
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
             };
+        },
+        .move_window_to_workspace_or_output_above => {
+            if (workspace_idx == 0) {
+                continue :action_switch .move_window_to_output_above;
+            }
+            continue :action_switch .move_window_to_workspace_above;
+        },
+        .move_window_to_workspace_or_output_below => {
+            if (workspace_idx == 9) {
+                continue :action_switch .move_window_to_output_below;
+            }
+            continue :action_switch .move_window_to_workspace_below;
         },
         .move_window_to_workspace_number => |number| {
             if (number == 0 or number > 10 or number - 1 == workspace_idx) return;
