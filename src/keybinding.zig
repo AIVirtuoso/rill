@@ -92,7 +92,7 @@ fn keybindingPressed(
     const workspace_idx = output.focused_workspace_idx;
     const workspace = &output.workspace_list[workspace_idx];
 
-    switch (action) {
+    action_switch: switch (action) {
         .close_window => {
             const window_idx = workspace.focused_window_idx orelse return;
             const window = &workspace.window_list.items[window_idx];
@@ -128,11 +128,25 @@ fn keybindingPressed(
             if (window_idx == 0) return;
             workspace.focused_window_idx = window_idx - 1;
         },
+        .focus_window_or_output_left => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (workspace.is_floating or window_idx == 0) {
+                continue :action_switch .focus_output_left;
+            }
+            continue :action_switch .focus_window_left;
+        },
         .focus_window_right => {
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
             if (window_idx == workspace.window_list.items.len - 1) return;
             workspace.focused_window_idx = window_idx + 1;
+        },
+        .focus_window_or_output_right => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (workspace.is_floating or window_idx == workspace.window_list.items.len - 1) {
+                continue :action_switch .focus_output_right;
+            }
+            continue :action_switch .focus_window_right;
         },
         .move_window_left => {
             if (workspace.is_floating) return;
