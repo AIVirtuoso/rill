@@ -15,18 +15,22 @@ pub fn seatListener(
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
     const workspace = output.workspace_list[output.focused_workspace_idx];
+    const window_idx = workspace.focused_window_idx orelse return;
+    const window = &workspace.window_list.items[window_idx];
 
     switch (event) {
         .window_interaction => |interaction| {
+            if (interaction.window == window.river_window) return;
+
             for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 const target_workspace =
                     &target_output.workspace_list[target_output.focused_workspace_idx];
 
-                for (target_workspace.window_list.items, 0..) |window, window_idx| {
-                    if (window.river_window != interaction.window) continue;
+                for (target_workspace.window_list.items, 0..) |target_window, target_window_idx| {
+                    if (target_window.river_window != interaction.window) continue;
 
                     wm.focused_output_idx = target_output_idx;
-                    target_workspace.focused_window_idx = window_idx;
+                    target_workspace.focused_window_idx = target_window_idx;
 
                     if (target_output_idx != output_idx) {
                         wm.previous_workspace = .{
@@ -42,8 +46,6 @@ pub fn seatListener(
             }
         },
         .op_delta => |delta| {
-            const window_idx = workspace.focused_window_idx orelse return;
-            const window = &workspace.window_list.items[window_idx];
             const start = window.start orelse return;
 
             const output_left = output.rectangle.x;
@@ -81,8 +83,7 @@ pub fn seatListener(
         },
         .op_release => {
             wm.status = .none;
-            const window_idx = workspace.focused_window_idx orelse return;
-            workspace.window_list.items[window_idx].start = null;
+            window.start = null;
         },
         else => {},
     }
