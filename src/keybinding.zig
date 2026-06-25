@@ -19,7 +19,7 @@ pub fn setupKeybindings(allocator: Allocator, wm: *types.WindowManager) !void {
         return;
     };
 
-    for (wm.config.keybindings) |keybinding| {
+    for (wm.getConfig().keybindings) |keybinding| {
         const keysym = parseKey(keybinding.key) orelse {
             std.debug.print("Failed to parse key\n", .{});
             continue;
@@ -109,10 +109,10 @@ fn keybindingPressed(
             var window = &workspace.window_list.items[window_idx];
             if (window.is_fullscreen) return;
 
-            const gap = wm.config.horizontal_gap;
+            const gap = wm.getConfig().horizontal_gap;
             const base_width: f32 = @floatFromInt(output.non_exclusive.width - gap);
             const width_with_gap: i32 = @trunc(base_width * (window.proportion + increment));
-            if (width_with_gap - gap < 2 * wm.config.border.width) return;
+            if (width_with_gap - gap < 2 * wm.getConfig().border.width) return;
 
             window.proportion += increment;
         },
@@ -312,7 +312,7 @@ fn keybindingPressed(
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
                 target_workspace.window_list.items[target_window_idx].floating =
-                    layout.initialRectangle(target_output.non_exclusive, wm.config);
+                    layout.initialRectangle(target_output.non_exclusive, wm.getConfig());
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -339,7 +339,7 @@ fn keybindingPressed(
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
                 target_workspace.window_list.items[target_window_idx].floating =
-                    layout.initialRectangle(target_output.non_exclusive, wm.config);
+                    layout.initialRectangle(target_output.non_exclusive, wm.getConfig());
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -366,7 +366,7 @@ fn keybindingPressed(
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
                 target_workspace.window_list.items[target_window_idx].floating =
-                    layout.initialRectangle(target_output.non_exclusive, wm.config);
+                    layout.initialRectangle(target_output.non_exclusive, wm.getConfig());
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -393,7 +393,7 @@ fn keybindingPressed(
 
                 const target_window_idx = target_workspace.focused_window_idx.?;
                 target_workspace.window_list.items[target_window_idx].floating =
-                    layout.initialRectangle(target_output.non_exclusive, wm.config);
+                    layout.initialRectangle(target_output.non_exclusive, wm.getConfig());
 
                 wm.focused_output_idx = target_output_idx;
                 wm.previous_workspace = .{
@@ -407,11 +407,18 @@ fn keybindingPressed(
             return;
         },
         .reload_config => {
-            wm.config = config.load(allocator, io, environ_map);
-            if (wm.config.cursor) |cursor| {
+            const old_config = wm.config;
+            const new_config = config.load(allocator, io, environ_map) orelse return;
+
+            wm.config = new_config;
+
+            if (old_config) |cfg|
+                std.zon.parse.free(wm.allocator, cfg);
+
+            if (wm.getConfig().cursor) |cursor| {
                 wm.river_seat.?.setXcursorTheme(cursor.theme, cursor.size);
             }
-            layout.update(wm.output_list, wm.config);
+            layout.update(wm.output_list, wm.getConfig());
 
             wm.status = .setup_bindings;
             return;
@@ -424,7 +431,7 @@ fn keybindingPressed(
         },
     }
 
-    layout.update(wm.output_list, wm.config);
+    layout.update(wm.output_list, wm.getConfig());
     wm.status = .layout;
 }
 

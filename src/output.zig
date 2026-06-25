@@ -99,7 +99,7 @@ fn layerShellOutputListener(
                     .x = area.x,
                     .y = area.y,
                 };
-                layout.update(wm.output_list, wm.config);
+                layout.update(wm.output_list, wm.getConfig());
                 wm.status = .layout;
             },
         }

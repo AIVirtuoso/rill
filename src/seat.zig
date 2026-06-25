@@ -39,7 +39,7 @@ pub fn seatListener(
                         };
                     }
 
-                    layout.update(wm.output_list, wm.config);
+                    layout.update(wm.output_list, wm.getConfig());
                     wm.status = .layout;
                     return;
                 }
@@ -93,7 +93,7 @@ pub fn setupPointerBindings(allocator: Allocator, wm: *types.WindowManager) !voi
     for (wm.pointer_binding_list.items) |binding| binding.river_pointer_binding.destroy();
     wm.pointer_binding_list.clearRetainingCapacity();
 
-    for (wm.config.pointer_bindings) |binding| {
+    for (wm.getConfig().pointer_bindings) |binding| {
         const pointer_binding = try wm.river_seat.?.getPointerBinding(
             @intFromEnum(binding.button),
             binding.modifiers,

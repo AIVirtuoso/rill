@@ -36,6 +36,8 @@ pub fn main(init: std.process.Init) !void {
     const display = try wayland.client.wl.Display.connect(null);
     defer display.disconnect();
 
+    const cfg = config.load(init.gpa, init.io, init.environ_map.*);
+
     var wm = types.WindowManager{
         .allocator = init.gpa,
         .io = init.io,
@@ -48,12 +50,12 @@ pub fn main(init: std.process.Init) !void {
         .output_list = .empty,
         .focused_output_idx = null,
         .previous_workspace = null,
-        .config = .{},
+        .config = cfg,
         .xkb_binding_list = .empty,
         .pointer_binding_list = .empty,
         .status = .none,
     };
-    defer wm.deinit(config.is_parsed);
+    defer wm.deinit();
 
     wm.registry.setListener(*types.WindowManager, registryListener, &wm);
     _ = display.roundtrip();
@@ -64,8 +66,7 @@ pub fn main(init: std.process.Init) !void {
     };
     window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
-    wm.config = config.load(wm.allocator, wm.io, wm.environ_map);
-    for (wm.config.spawn_at_startup) |command| {
+    for (wm.getConfig().spawn_at_startup) |command| {
         _ = std.process.spawn(wm.io, .{ .argv = command }) catch |err| {
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
         };
@@ -116,7 +117,7 @@ fn windowManagerListener(
             wm.river_seat = seat_event.id;
             seat_event.id.setListener(*types.WindowManager, seat.seatListener, wm);
 
-            if (wm.config.cursor) |cursor| {
+            if (wm.getConfig().cursor) |cursor| {
                 seat_event.id.setXcursorTheme(cursor.theme, cursor.size);
             }
             wm.status = .setup_bindings;
@@ -162,7 +163,7 @@ fn manage(allocator: Allocator, io: Io, wm: *types.WindowManager) void {
                 allocator,
                 &wm.output_list,
                 focused_output_idx,
-                wm.config,
+                wm.getConfig(),
                 river_seat,
             );
             wm.status = .{
@@ -173,14 +174,14 @@ fn manage(allocator: Allocator, io: Io, wm: *types.WindowManager) void {
             wm.status = animation.apply(
                 wm.output_list,
                 focused_output_idx,
-                wm.config,
+                wm.getConfig(),
                 start_time,
                 Io.Clock.awake.now(io).toMilliseconds(),
             );
         },
         .pointer_action => {
             river_seat.opStartPointer();
-            seat.pointerAction(wm.output_list, focused_output_idx, wm.config);
+            seat.pointerAction(wm.output_list, focused_output_idx, wm.getConfig());
         },
         .setup_bindings => {
             keybinding.setupKeybindings(allocator, wm) catch |err| {
@@ -194,7 +195,7 @@ fn manage(allocator: Allocator, io: Io, wm: *types.WindowManager) void {
             wm.river_window_manager.?.manageDirty();
         },
         .exit => {
-            wm.deinit(config.is_parsed);
+            wm.deinit();
             wm.river_window_manager.?.exitSession();
         },
         .none => river_seat.opEnd(),

@@ -18,7 +18,7 @@ pub const WindowManager = struct {
     focused_output_idx: ?usize,
     previous_workspace: ?struct { output_idx: usize, workspace_idx: usize },
     status: Status,
-    config: Config,
+    config: ?*Config,
     xkb_binding_list: std.ArrayList(struct {
         river_xkb_binding: *river.XkbBindingV1,
         action: KeybindingAction,
@@ -28,8 +28,13 @@ pub const WindowManager = struct {
         action: PointerAction,
     }),
 
-    pub fn deinit(self: *WindowManager, config_is_parsed: bool) void {
-        if (config_is_parsed) std.zon.parse.free(self.allocator, self.config);
+    pub fn getConfig(self: *WindowManager) Config {
+        return if(self.config) |cfg| cfg.* else .{};
+    }
+
+    pub fn deinit(self: *WindowManager) void {
+        if (self.config) |cfg|
+            std.zon.parse.free(self.allocator, cfg);
 
         self.xkb_binding_list.deinit(self.allocator);
         self.pointer_binding_list.deinit(self.allocator);
