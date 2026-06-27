@@ -92,7 +92,7 @@ fn keybindingPressed(
     const workspace_idx = output.focused_workspace_idx;
     const workspace = &output.workspace_list[workspace_idx];
 
-    switch (action) {
+    action_switch: switch (action) {
         .close_window => {
             const window_idx = workspace.focused_window_idx orelse return;
             const window = &workspace.window_list.items[window_idx];
@@ -102,6 +102,12 @@ fn keybindingPressed(
             const window_idx = workspace.focused_window_idx orelse return;
             const window = &workspace.window_list.items[window_idx];
             window.is_fullscreen = !window.is_fullscreen;
+        },
+        .toggle_maximize_column => {
+            if (workspace.is_floating) return;
+            const window_idx = workspace.focused_window_idx orelse return;
+            var window = &workspace.window_list.items[window_idx];
+            window.proportion = if (window.proportion == 1.0) 0.5 else 1.0;
         },
         .adjust_window_width => |increment| {
             if (workspace.is_floating) return;
@@ -128,11 +134,25 @@ fn keybindingPressed(
             if (window_idx == 0) return;
             workspace.focused_window_idx = window_idx - 1;
         },
+        .focus_window_or_output_left => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (workspace.is_floating or window_idx == 0) {
+                continue :action_switch .focus_output_left;
+            }
+            continue :action_switch .focus_window_left;
+        },
         .focus_window_right => {
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
             if (window_idx == workspace.window_list.items.len - 1) return;
             workspace.focused_window_idx = window_idx + 1;
+        },
+        .focus_window_or_output_right => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (workspace.is_floating or window_idx == workspace.window_list.items.len - 1) {
+                continue :action_switch .focus_output_right;
+            }
+            continue :action_switch .focus_window_right;
         },
         .move_window_left => {
             if (workspace.is_floating) return;
@@ -156,6 +176,20 @@ fn keybindingPressed(
             );
             workspace.focused_window_idx = window_idx + 1;
         },
+        .move_window_left_or_to_output_left => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (window_idx == 0) {
+                continue :action_switch .move_window_to_output_left;
+            }
+            continue :action_switch .move_window_left;
+        },
+        .move_window_right_or_to_output_right => {
+            const window_idx = workspace.focused_window_idx orelse return;
+            if (window_idx == workspace.window_list.items.len - 1) {
+                continue :action_switch .move_window_to_output_right;
+            }
+            continue :action_switch .move_window_right;
+        },
         .toggle_workspace_floating => workspace.is_floating = !workspace.is_floating,
         .focus_workspace_above => {
             if (workspace_idx == 0) return;
@@ -172,6 +206,18 @@ fn keybindingPressed(
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
             };
+        },
+        .focus_workspace_or_output_above => {
+            if (workspace_idx == 0) {
+                continue :action_switch .focus_output_above;
+            }
+            continue :action_switch .focus_workspace_above;
+        },
+        .focus_workspace_or_output_below => {
+            if (workspace_idx == 9) {
+                continue :action_switch .focus_output_below;
+            }
+            continue :action_switch .focus_workspace_below;
         },
         .focus_workspace_previous => {
             const previous = wm.previous_workspace orelse return;
@@ -227,6 +273,18 @@ fn keybindingPressed(
                 .output_idx = output_idx,
                 .workspace_idx = workspace_idx,
             };
+        },
+        .move_window_to_workspace_or_output_above => {
+            if (workspace_idx == 0) {
+                continue :action_switch .move_window_to_output_above;
+            }
+            continue :action_switch .move_window_to_workspace_above;
+        },
+        .move_window_to_workspace_or_output_below => {
+            if (workspace_idx == 9) {
+                continue :action_switch .move_window_to_output_below;
+            }
+            continue :action_switch .move_window_to_workspace_below;
         },
         .move_window_to_workspace_number => |number| {
             if (number == 0 or number > 10 or number - 1 == workspace_idx) return;
