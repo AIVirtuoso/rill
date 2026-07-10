@@ -17,7 +17,7 @@ pub fn apply(
     const eased = 1 - std.math.pow(f32, 1 - progress, 3);
 
     for (output_list.items, 0..) |*output, output_idx| {
-        for (output.workspace_list, 0..) |workspace, workspace_idx| {
+        for (output.workspace_list.items, 0..) |*workspace, workspace_idx| {
             for (workspace.window_list.items, 0..) |*window, window_idx| {
                 const start = window.start orelse continue;
                 const finish = window.finish orelse continue;

@@ -66,10 +66,26 @@ pub fn main(init: std.process.Init) !void {
     };
     window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
-    for (wm.getConfig().spawn_at_startup) |command| {
+    const loaded_config = wm.getConfig();
+    for (loaded_config.spawn_at_startup) |command| {
         _ = std.process.spawn(wm.io, .{ .argv = command }) catch |err| {
             std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
         };
+    }
+
+    var workspaces_to_create: i32 = 10;
+    if (loaded_config.dynamic_workspaces) {
+        workspaces_to_create = 1;
+    }
+    for (wm.output_list.items) |*my_output| {
+        while (workspaces_to_create > 0) : (workspaces_to_create -= 1) {
+            const workspace = types.Workspace{
+                .window_list = .empty,
+                .focused_window_idx = null,
+                .is_floating = false,
+            };
+            try my_output.workspace_list.append(wm.allocator, workspace);
+        }
     }
 
     while (true) {

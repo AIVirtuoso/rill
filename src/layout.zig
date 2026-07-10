@@ -17,7 +17,7 @@ pub var pending_windows: std.ArrayList(*river.WindowV1) = .empty;
 
 pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) void {
     for (output_list.items) |*output| {
-        for (output.workspace_list, 0..) |workspace, workspace_idx| {
+        for (output.workspace_list.items, 0..) |workspace, workspace_idx| {
             const workspace_offset = @as(i32, @intCast(workspace_idx)) -
                 @as(i32, @intCast(output.focused_workspace_idx));
             const y_offset = workspace_offset * output.rectangle.height;
@@ -211,7 +211,7 @@ pub fn apply(
         const output = &output_list.items[output_idx];
 
         if (output.is_removed) {
-            for (&output.workspace_list) |*workspace| {
+            for (output.workspace_list.items) |*workspace| {
                 for (workspace.window_list.items) |window| {
                     window.river_window.close();
                 }
@@ -221,7 +221,7 @@ pub fn apply(
             continue;
         }
 
-        for (output.workspace_list, 0..) |workspace, workspace_idx| {
+        for (output.workspace_list.items, 0..) |workspace, workspace_idx| {
             for (workspace.window_list.items, 0..) |window, window_idx| {
                 window.river_window.exitFullscreen();
 
@@ -254,6 +254,37 @@ pub fn apply(
                 window.river_node.placeTop();
                 river_seat.focusWindow(window.river_window);
             }
+        }
+
+        // if dynamic workspaces are enabled then we go through and remove any workspaces
+        // currently with no windows.
+        if (config.dynamic_workspaces) {
+            // remove empty workspaces in reverse order
+            var i = output.workspace_list.items.len;
+            while (i > 0) : (i -= 1) {
+                const workspace = output.workspace_list.items[i - 1];
+                const window_count = workspace.window_list.items.len;
+                if (window_count > 0) continue;
+                if (output.focused_workspace_idx == i - 1) continue;
+
+                // remove the empty workspace from the array
+                _ = output.workspace_list.orderedRemove(i - 1);
+
+                // make sure to keep track which workspace is focused
+                if (i - 1 < output.focused_workspace_idx and output.focused_workspace_idx != 0) {
+                    output.focused_workspace_idx -= 1;
+                }
+            }
+
+            // always leave one empty workspace at the end
+            const final_workspace = types.Workspace{
+                .window_list = .empty,
+                .focused_window_idx = null,
+                .is_floating = false,
+            };
+            output.workspace_list.append(allocator, final_workspace) catch |err| {
+                std.debug.print("could not add empty workspace for dynamic workspaces: {}\n", .{err});
+            };
         }
 
         if (output_idx != focused_output_idx) continue;

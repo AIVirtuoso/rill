@@ -14,7 +14,7 @@ pub fn seatListener(
 ) void {
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
-    const workspace = output.workspace_list[output.focused_workspace_idx];
+    const workspace = output.workspace_list.items[output.focused_workspace_idx];
     const window_idx = workspace.focused_window_idx orelse return;
     const window = &workspace.window_list.items[window_idx];
 
@@ -24,7 +24,7 @@ pub fn seatListener(
 
             for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
+                    &target_output.workspace_list.items[target_output.focused_workspace_idx];
 
                 for (target_workspace.window_list.items, 0..) |target_window, target_window_idx| {
                     if (target_window.river_window != interaction.window) continue;
@@ -118,7 +118,7 @@ fn pointerBindingListener(
             .pressed => {
                 const output_idx = wm.focused_output_idx orelse return;
                 const output = &wm.output_list.items[output_idx];
-                const workspace = output.workspace_list[output.focused_workspace_idx];
+                const workspace = output.workspace_list.items[output.focused_workspace_idx];
                 if (!workspace.is_floating) return;
 
                 const window_idx = workspace.focused_window_idx orelse return;
@@ -151,7 +151,7 @@ pub fn pointerAction(
     config: types.Config,
 ) void {
     const output = output_list.items[focused_output_idx];
-    const workspace = output.workspace_list[output.focused_workspace_idx];
+    const workspace = output.workspace_list.items[output.focused_workspace_idx];
     const window_idx = workspace.focused_window_idx orelse return;
     const window = workspace.window_list.items[window_idx];
 

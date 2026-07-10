@@ -90,7 +90,7 @@ fn keybindingPressed(
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
     const workspace_idx = output.focused_workspace_idx;
-    const workspace = &output.workspace_list[workspace_idx];
+    const workspace = &output.workspace_list.items[workspace_idx];
 
     action_switch: switch (action) {
         .close_window => {
@@ -230,7 +230,7 @@ fn keybindingPressed(
             };
         },
         .focus_workspace_number => |number| {
-            if (number == 0 or number > 10) return;
+            if (number == 0 or number > output.workspace_list.items.len) return;
             if (workspace_idx == number - 1) return;
             output.focused_workspace_idx = number - 1;
             wm.previous_workspace = .{
@@ -241,7 +241,7 @@ fn keybindingPressed(
         .move_window_to_workspace_above => {
             if (workspace_idx == 0) return;
             const window_idx = workspace.focused_window_idx orelse return;
-            const target_workspace = &output.workspace_list[workspace_idx - 1];
+            const target_workspace = &output.workspace_list.items[workspace_idx - 1];
 
             try moveWindowToWorkspace(
                 allocator,
@@ -259,7 +259,7 @@ fn keybindingPressed(
         .move_window_to_workspace_below => {
             if (workspace_idx == 9) return;
             const window_idx = workspace.focused_window_idx orelse return;
-            const target_workspace = &output.workspace_list[workspace_idx + 1];
+            const target_workspace = &output.workspace_list.items[workspace_idx + 1];
 
             try moveWindowToWorkspace(
                 allocator,
@@ -287,9 +287,9 @@ fn keybindingPressed(
             continue :action_switch .move_window_to_workspace_below;
         },
         .move_window_to_workspace_number => |number| {
-            if (number == 0 or number > 10 or number - 1 == workspace_idx) return;
+            if (number == 0 or number > output.workspace_list.items.len or number - 1 == workspace_idx) return;
             const window_idx = workspace.focused_window_idx orelse return;
-            const target_workspace = &output.workspace_list[number - 1];
+            const target_workspace = &output.workspace_list.items[number - 1];
 
             try moveWindowToWorkspace(
                 allocator,
@@ -359,7 +359,7 @@ fn keybindingPressed(
                     output.rectangle.x) continue;
 
                 const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
+                    &target_output.workspace_list.items[target_output.focused_workspace_idx];
 
                 try moveWindowToWorkspace(
                     allocator,
@@ -386,7 +386,7 @@ fn keybindingPressed(
                     output.rectangle.x + output.rectangle.width) continue;
 
                 const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
+                    &target_output.workspace_list.items[target_output.focused_workspace_idx];
 
                 try moveWindowToWorkspace(
                     allocator,
@@ -413,7 +413,7 @@ fn keybindingPressed(
                     output.rectangle.y) continue;
 
                 const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
+                    &target_output.workspace_list.items[target_output.focused_workspace_idx];
 
                 try moveWindowToWorkspace(
                     allocator,
@@ -440,7 +440,7 @@ fn keybindingPressed(
                     output.rectangle.y + output.rectangle.height) continue;
 
                 const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
+                    &target_output.workspace_list.items[target_output.focused_workspace_idx];
 
                 try moveWindowToWorkspace(
                     allocator,

@@ -29,7 +29,7 @@ pub const WindowManager = struct {
     }),
 
     pub fn getConfig(self: *WindowManager) Config {
-        return if(self.config) |cfg| cfg.* else .{};
+        return if (self.config) |cfg| cfg.* else .{};
     }
 
     pub fn deinit(self: *WindowManager) void {
@@ -40,9 +40,10 @@ pub const WindowManager = struct {
         self.pointer_binding_list.deinit(self.allocator);
 
         for (self.output_list.items) |*output| {
-            for (&output.workspace_list) |*workspace| {
+            for (output.workspace_list.items) |*workspace| {
                 workspace.window_list.deinit(self.allocator);
             }
+            output.workspace_list.deinit(self.allocator);
         }
         self.output_list.deinit(self.allocator);
 
@@ -71,7 +72,7 @@ pub const Workspace = struct {
 pub const Output = struct {
     river_output: *river.OutputV1,
     river_layer_shell_output: ?*river.LayerShellOutputV1,
-    workspace_list: [10]Workspace,
+    workspace_list: std.ArrayList(Workspace) = .empty,
     focused_workspace_idx: usize,
     rectangle: Rectangle,
     non_exclusive: Rectangle,
@@ -100,6 +101,7 @@ pub const Config = struct {
     default_window_width: f32 = 0.5,
     center_focused_window: enum { never, always, single } = .never,
     no_csd: bool = true,
+    dynamic_workspaces: bool = false,
     animation_duration: u32 = 200,
     border: Border = .{
         .width = 3,
