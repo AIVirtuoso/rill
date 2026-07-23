@@ -112,6 +112,8 @@ fn pointerBindingListener(
     event: river.PointerBindingV1.Event,
     wm: *types.WindowManager,
 ) void {
+    if (wm.is_passthrough) return;
+
     for (wm.pointer_binding_list.items) |binding| {
         if (binding.river_pointer_binding != pointer_binding) continue;
         switch (event) {

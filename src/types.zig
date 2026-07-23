@@ -19,6 +19,7 @@ pub const WindowManager = struct {
     previous_workspace: ?struct { output_idx: usize, workspace_idx: usize },
     status: Status,
     config: ?*Config,
+    is_passthrough: bool = false,
     xkb_binding_list: std.ArrayList(struct {
         river_xkb_binding: *river.XkbBindingV1,
         action: KeybindingAction,
@@ -151,6 +152,7 @@ pub const KeybindingAction = union(enum) {
     close_window: void,
     toggle_fullscreen: void,
     toggle_maximize_column: void,
+    toggle_passthrough: void,
     adjust_window_width: f32,
     set_window_width: f32,
     focus_window_left: void,

@@ -43,6 +43,7 @@
 
         .{ .key = "q", .modifiers = .{ .mod4 = true }, .action = .close_window },
         .{ .key = "f", .modifiers = .{ .mod4 = true }, .action = .toggle_fullscreen },
+        .{ .key = "F11", .modifiers = .{ .mod4 = true }, .action = .toggle_passthrough },
 
         // Decrease focused window's width by 0.1 of the output's available width
         .{ .key = "minus", .modifiers = .{ .mod4 = true }, .action = .{ .adjust_window_width = -0.1 } },

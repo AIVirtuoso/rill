@@ -64,10 +64,16 @@ fn xkbBindingListener(
         if (binding.river_xkb_binding != xkb_binding) continue;
         switch (event) {
             .pressed => {
+                const action = binding.action;
+
+                // if we are in passthrough mode and we are not trying to toggle it then
+                // go ahead and forego checking the action.
+                if (wm.is_passthrough and action != .toggle_passthrough) continue;
+
                 keybindingPressed(
                     wm.allocator,
                     wm.io,
-                    binding.action,
+                    action,
                     wm,
                     wm.environ_map,
                 ) catch |err| {
@@ -109,6 +115,7 @@ fn keybindingPressed(
             var window = &workspace.window_list.items[window_idx];
             window.proportion = if (window.proportion == 1.0) 0.5 else 1.0;
         },
+        .toggle_passthrough => wm.is_passthrough = !wm.is_passthrough,
         .adjust_window_width => |increment| {
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
