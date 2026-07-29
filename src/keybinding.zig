@@ -529,7 +529,15 @@ fn keybindingPressed(
             if (pid < 0) {
                 return error.ForkFailed;
             } else if (pid == 0) {
-                _ = try std.process.spawn(io, .{ .argv = command });
+                _ = std.process.spawn(io, .{ .argv = command }) catch |err| {
+                    // basename, not the full argv[0]: commands are routinely
+                    // absolute paths under $HOME, which puts the user's name in
+                    // the log.
+                    std.debug.print("Failed to spawn {s}: {}\n", .{
+                        Io.Dir.path.basename(command[0]),
+                        err,
+                    });
+                };
                 std.process.exit(0);
             }
             _ = std.posix.system.waitpid(pid, null, 0);

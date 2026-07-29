@@ -62,7 +62,12 @@ pub fn main(init: std.process.Init) !void {
     const loaded_config = wm.getConfig();
     for (loaded_config.spawn_at_startup) |command| {
         _ = std.process.spawn(wm.io, .{ .argv = command }) catch |err| {
-            std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+            // basename, not the full argv[0]: commands are routinely absolute
+            // paths under $HOME, which puts the user's name in the log.
+            std.debug.print("Failed to spawn {s}: {}\n", .{
+                Io.Dir.path.basename(command[0]),
+                err,
+            });
         };
     }
 
