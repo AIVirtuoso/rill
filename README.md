@@ -1,6 +1,10 @@
 # Rill
 A minimalist scrolling window manager for [river](https://isaacfreund.com/software/river/), implementing the [river-window-management-v1](https://isaacfreund.com/docs/wayland/river-window-management-v1/) protocol
 
+> **This is a fork.** Upstream is <https://codeberg.org/lzj15/rill>.
+> See [Licence](#licence) — this fork is distributed under the GPLv3, while
+> upstream rill is MIT.
+
 ## Features
 * Scrolling layout
 * Floating layout
@@ -75,3 +79,29 @@ Run `rill` in [river's init file](https://codeberg.org/river/river#usage), or di
 ```sh
 zig build --release=safe
 ```
+
+## Licence
+
+This is a fork of [rill](https://codeberg.org/lzj15/rill) by Zhijian Li.
+
+The original work is Copyright 2026 Zhijian Li and is licensed under the MIT
+licence, reproduced in full in [`LICENSE.MIT`](LICENSE.MIT). That notice is
+retained as the MIT licence requires, and upstream rill remains available under
+MIT from the link above.
+
+Modifications in this fork are Copyright 2026 polonius-dev and are licensed
+under the GNU General Public License version 3, and the combined work is
+distributed under the GPLv3. See [`LICENSE`](LICENSE).
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
