@@ -56,6 +56,11 @@ pub const Window = struct {
     proportion: f32,
     is_fullscreen: bool,
     is_closing: bool,
+    is_floating: bool,
+    /// Set when the rule that floated this window asked for `.client` sizing.
+    /// Such a window keeps following the dimensions the client reports instead
+    /// of being held at a fixed proportion of the output.
+    float_client_size: bool,
     floating: Rectangle,
     current: Rectangle,
     start: ?Rectangle,
@@ -107,9 +112,45 @@ pub const Config = struct {
         .unfocused_color = .{ .r = 160, .g = 160, .b = 160, .a = 1.0 },
     },
     cursor: ?struct { theme: [:0]const u8, size: u32 } = null,
+    /// Proportion of the output a rule-floated window occupies. It is centred,
+    /// so it reads as an overlay instead of filling a tile-shaped slot.
+    float_width: f32 = 0.6,
+    float_height: f32 = 0.6,
+    window_rules: []const WindowRule = &.{},
     spawn_at_startup: []const []const []const u8 = &.{},
     keybindings: []const Keybinding = &default_keybindings,
     pointer_bindings: []const PointerBinding = &default_pointer_bindings,
+};
+
+/// Matched against a window's app_id and title when it is first mapped. Both
+/// patterns are optional and a null pattern is unconstrained, so a rule with
+/// neither set is inert rather than applying to every window. When both are
+/// set, both must match. Some windows set no app_id at all (hyprpolkitagent,
+/// for one), which is why matching on title is supported.
+/// How a floated window is sized. `proportion` uses float_width/float_height
+/// of the output; `client` uses whatever dimensions the window picks for
+/// itself, which is what a dialog that has a natural size wants.
+pub const FloatSize = enum { proportion, client };
+
+pub const WindowRule = struct {
+    app_id: ?[:0]const u8 = null,
+    title: ?[:0]const u8 = null,
+    float: bool = false,
+    float_size: FloatSize = .proportion,
+
+    pub fn isInert(self: WindowRule) bool {
+        return self.app_id == null and self.title == null;
+    }
+
+    pub fn matchesAppId(self: WindowRule, app_id: ?[:0]const u8) bool {
+        const pattern = self.app_id orelse return true;
+        return std.mem.eql(u8, pattern, app_id orelse return false);
+    }
+
+    pub fn matchesTitle(self: WindowRule, title: ?[:0]const u8) bool {
+        const pattern = self.title orelse return true;
+        return std.mem.eql(u8, pattern, title orelse return false);
+    }
 };
 
 const Border = struct { width: u8, focused_color: Color, unfocused_color: Color };

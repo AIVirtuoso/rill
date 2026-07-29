@@ -15,6 +15,21 @@ const edges = river.WindowV1.Edges{
 
 pub var pending_windows: std.ArrayList(*river.WindowV1) = .empty;
 
+/// Per-window rule matching state, tracked between the app_id/title events and
+/// the first dimensions event. Each mask holds one bit per configured rule,
+/// set while that rule's corresponding pattern is satisfied; a rule applies
+/// when its bit is set in both. Rules past the 64th are ignored. Drained by
+/// window.add().
+pub const max_window_rules = 64;
+
+pub const PendingRules = struct {
+    river_window: *river.WindowV1,
+    app_id_mask: u64,
+    title_mask: u64,
+};
+
+pub var pending_rules: std.ArrayList(PendingRules) = .empty;
+
 pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) void {
     for (output_list.items) |*output| {
         for (output.workspace_list, 0..) |workspace, workspace_idx| {
@@ -31,24 +46,59 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
             const focused_window = &workspace.window_list.items[focused_window_idx];
             var rectangle: types.Rectangle = undefined;
 
+            // Rule-floated windows keep their own geometry and occupy no slot
+            // in the scroll chain.
+            var tiled_count: usize = 0;
+            for (workspace.window_list.items) |*window| {
+                if (!window.is_floating) {
+                    tiled_count += 1;
+                    continue;
+                }
+                window.start = window.current;
+                window.finish = if (window.is_fullscreen)
+                    output.rectangle
+                else
+                    window.floating;
+                window.finish.?.y += y_offset;
+            }
+
             const should_center = switch (config.center_focused_window) {
                 .never => false,
                 .always => true,
-                .single => workspace.window_list.items.len == 1,
+                .single => tiled_count == 1,
             };
 
+            // The chain is anchored on the focused window, or on the nearest
+            // tiled window when the focused one is floating.
+            const anchor_idx = blk: {
+                if (!focused_window.is_floating) break :blk focused_window_idx;
+
+                var before = focused_window_idx;
+                while (before > 0) {
+                    before -= 1;
+                    if (!workspace.window_list.items[before].is_floating) break :blk before;
+                }
+                var after = focused_window_idx + 1;
+                while (after < workspace.window_list.items.len) : (after += 1) {
+                    if (!workspace.window_list.items[after].is_floating) break :blk after;
+                }
+                break :blk null;
+            } orelse continue;
+            const anchor_window = &workspace.window_list.items[anchor_idx];
+
             focusedWindowLayout(
-                focused_window,
+                anchor_window,
                 &rectangle,
                 output,
                 config,
                 y_offset,
                 should_center,
             );
-            focused_window.finish = rectangle;
+            anchor_window.finish = rectangle;
 
             rectangle.x += rectangle.width + config.horizontal_gap;
-            for (workspace.window_list.items[focused_window_idx + 1 ..]) |*window| {
+            for (workspace.window_list.items[anchor_idx + 1 ..]) |*window| {
+                if (window.is_floating) continue;
                 unfocusedWindowLayout(
                     window,
                     &rectangle,
@@ -60,11 +110,12 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
                 rectangle.x += rectangle.width + config.horizontal_gap;
             }
 
-            rectangle.x = focused_window.finish.?.x;
-            var window_idx = focused_window_idx;
+            rectangle.x = anchor_window.finish.?.x;
+            var window_idx = anchor_idx;
             while (window_idx > 0) {
                 window_idx -= 1;
                 const window = &workspace.window_list.items[window_idx];
+                if (window.is_floating) continue;
                 unfocusedWindowLayout(
                     window,
                     &rectangle,
@@ -168,18 +219,28 @@ fn snapToEdge(
     non_exclusive: types.Rectangle,
     gap: i32,
 ) void {
+    // Floating windows are not part of the chain, so the edges are the first
+    // and last tiled windows rather than the first and last in the list.
+    var head_window: ?types.Window = null;
+    var tail_window: ?types.Window = null;
+    for (window_list.items) |window| {
+        if (window.is_floating) continue;
+        if (head_window == null) head_window = window;
+        tail_window = window;
+    }
+    const head = (head_window orelse return).finish.?.x;
+
     var head_distance: ?i32 = null;
-    const head = window_list.items[0].finish.?.x;
     const left = non_exclusive.x + gap;
     if (head > left) head_distance = head - left;
 
     var tail_distance: ?i32 = null;
-    const tail_window = window_list.items[window_list.items.len - 1];
-    const tail = tail_window.finish.?.x + tail_window.finish.?.width;
+    const tail = tail_window.?.finish.?.x + tail_window.?.finish.?.width;
     const right = non_exclusive.x + non_exclusive.width - gap;
     if (tail < right) tail_distance = @min(right - tail, left - head);
 
     for (window_list.items) |*window| {
+        if (window.is_floating) continue;
         const x = &window.finish.?.x;
         if (head_distance) |distance| {
             x.* -= distance;
@@ -256,11 +317,116 @@ pub fn apply(
             }
         }
 
+        // A floating window overlaps tiled windows by design, so it has to be
+        // raised even when it is not focused - the loop above only raises the
+        // focused window, which would leave a floating window buried under the
+        // windows it overlaps as soon as anything else takes focus. The focused
+        // floating window is raised last so it stays on top of the others.
+        const visible_workspace = &output.workspace_list[output.focused_workspace_idx];
+        for (visible_workspace.window_list.items, 0..) |window, window_idx| {
+            if (!window.is_floating) continue;
+            if (visible_workspace.focused_window_idx == window_idx) continue;
+            window.river_node.placeTop();
+        }
+        if (visible_workspace.focused_window_idx) |window_idx| {
+            const window = visible_workspace.window_list.items[window_idx];
+            if (window.is_floating) window.river_node.placeTop();
+        }
+
         if (output_idx != focused_output_idx) continue;
         if (output.river_layer_shell_output) |layer_shell_output| {
             layer_shell_output.setDefault();
         }
     }
+}
+
+/// Geometry for a rule-floated window: centred on the output at a proportion
+/// of the available area. Deliberately not `initialRectangle`, which is a
+/// tile-shaped slot (half width, full height) and therefore indistinguishable
+/// from a tiled window. `initialRectangle` still backs the per-workspace
+/// floating mode, which is left as upstream had it.
+pub fn floatRectangle(
+    non_exclusive: types.Rectangle,
+    config: types.Config,
+) types.Rectangle {
+    const available_width: f32 = @floatFromInt(non_exclusive.width);
+    const available_height: f32 = @floatFromInt(non_exclusive.height);
+
+    const width: i32 = @intFromFloat(available_width * config.float_width);
+    const height: i32 = @intFromFloat(available_height * config.float_height);
+
+    return .{
+        .width = width,
+        .height = height,
+        .x = non_exclusive.x + @divTrunc(non_exclusive.width - width, 2),
+        .y = non_exclusive.y + @divTrunc(non_exclusive.height - height, 2),
+    };
+}
+
+/// Window rect for a content size the client chose itself. The dimensions
+/// event reports *content* size, which excludes the borders that
+/// `placeWindow` subtracts before proposing, so they have to be added back or
+/// the window shrinks by 2*border on every round trip. Capped at the output,
+/// since a clip box is the only thing rill can do with a window too big to fit.
+fn clientSize(
+    non_exclusive: types.Rectangle,
+    width: i32,
+    height: i32,
+    config: types.Config,
+) struct { width: i32, height: i32 } {
+    const border: i32 = 2 * @as(i32, config.border.width);
+    return .{
+        .width = @min(@max(width + border, 1), non_exclusive.width),
+        .height = @min(@max(height + border, 1), non_exclusive.height),
+    };
+}
+
+/// Initial placement for a self-sizing floated window: its own size, centred.
+pub fn floatRectangleClient(
+    non_exclusive: types.Rectangle,
+    width: i32,
+    height: i32,
+    config: types.Config,
+) types.Rectangle {
+    const size = clientSize(non_exclusive, width, height, config);
+    return .{
+        .width = size.width,
+        .height = size.height,
+        .x = non_exclusive.x + @divTrunc(non_exclusive.width - size.width, 2),
+        .y = non_exclusive.y + @divTrunc(non_exclusive.height - size.height, 2),
+    };
+}
+
+/// Re-size a self-sizing floated window that has already been placed. The
+/// centre is preserved rather than re-centring on the output, so a window the
+/// user has dragged somewhere stays where they put it when the client resizes
+/// itself. The result is nudged back inside the output if it would overhang.
+pub fn floatRectangleResize(
+    current: types.Rectangle,
+    non_exclusive: types.Rectangle,
+    width: i32,
+    height: i32,
+    config: types.Config,
+) types.Rectangle {
+    const size = clientSize(non_exclusive, width, height, config);
+
+    const center_x = current.x + @divTrunc(current.width, 2);
+    const center_y = current.y + @divTrunc(current.height, 2);
+
+    return .{
+        .width = size.width,
+        .height = size.height,
+        .x = std.math.clamp(
+            center_x - @divTrunc(size.width, 2),
+            non_exclusive.x,
+            non_exclusive.x + non_exclusive.width - size.width,
+        ),
+        .y = std.math.clamp(
+            center_y - @divTrunc(size.height, 2),
+            non_exclusive.y,
+            non_exclusive.y + non_exclusive.height - size.height,
+        ),
+    };
 }
 
 pub fn initialRectangle(
