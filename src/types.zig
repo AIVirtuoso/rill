@@ -78,6 +78,8 @@ pub const Window = struct {
 
 pub const previousTiled = column.previousTiled;
 pub const nextTiled = column.nextTiled;
+pub const hasAbove = column.hasAbove;
+pub const hasBelow = column.hasBelow;
 
 /// The column arithmetic lives in `column.zig`, which knows nothing about
 /// wayland and is unit-tested on its own. These are thin bindings of it to the
@@ -241,6 +243,8 @@ pub const KeybindingAction = union(enum) {
     focus_window_or_output_right: void,
     focus_window_up: void,
     focus_window_down: void,
+    focus_window_or_workspace_up: void,
+    focus_window_or_workspace_down: void,
     move_window_left: void,
     move_window_right: void,
     move_window_up: void,

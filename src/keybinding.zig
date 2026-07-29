@@ -172,8 +172,7 @@ fn keybindingPressed(
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
             const items = workspace.window_list.items;
-            // Only a member has anything above it; a head is already the top.
-            if (!items[window_idx].stacked) return;
+            if (!types.hasAbove(items, window_idx)) return;
             workspace.focused_window_idx =
                 types.previousTiled(items, window_idx) orelse return;
         },
@@ -181,18 +180,38 @@ fn keybindingPressed(
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
             const items = workspace.window_list.items;
-            if (items[window_idx].is_floating) return;
-            const next_idx = types.nextTiled(items, window_idx) orelse return;
-            // A tiled window that is not stacked starts the next column, so
-            // there is nothing below this one inside its own column.
-            if (!items[next_idx].stacked) return;
-            workspace.focused_window_idx = next_idx;
+            if (!types.hasBelow(items, window_idx)) return;
+            workspace.focused_window_idx =
+                types.nextTiled(items, window_idx) orelse return;
+        },
+        // Vertical movement that falls out of the column at its ends: inside a
+        // stack these step between members, and at the top or bottom member
+        // they carry on to the workspace above or below. A window that is not
+        // stacked has neither, so this is plain workspace switching until a
+        // column is built - which is what makes it safe to put on Super+J/K.
+        .focus_window_or_workspace_up => {
+            if (workspace.is_floating) continue :action_switch .focus_workspace_above;
+            const window_idx = workspace.focused_window_idx orelse
+                continue :action_switch .focus_workspace_above;
+            if (!types.hasAbove(workspace.window_list.items, window_idx)) {
+                continue :action_switch .focus_workspace_above;
+            }
+            continue :action_switch .focus_window_up;
+        },
+        .focus_window_or_workspace_down => {
+            if (workspace.is_floating) continue :action_switch .focus_workspace_below;
+            const window_idx = workspace.focused_window_idx orelse
+                continue :action_switch .focus_workspace_below;
+            if (!types.hasBelow(workspace.window_list.items, window_idx)) {
+                continue :action_switch .focus_workspace_below;
+            }
+            continue :action_switch .focus_window_down;
         },
         .move_window_up => {
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
             const items = workspace.window_list.items;
-            if (!items[window_idx].stacked) return;
+            if (!types.hasAbove(items, window_idx)) return;
             const above_idx = types.previousTiled(items, window_idx) orelse return;
             swapWindows(items, window_idx, above_idx);
             workspace.focused_window_idx = above_idx;
@@ -201,9 +220,8 @@ fn keybindingPressed(
             if (workspace.is_floating) return;
             const window_idx = workspace.focused_window_idx orelse return;
             const items = workspace.window_list.items;
-            if (items[window_idx].is_floating) return;
+            if (!types.hasBelow(items, window_idx)) return;
             const below_idx = types.nextTiled(items, window_idx) orelse return;
-            if (!items[below_idx].stacked) return;
             swapWindows(items, window_idx, below_idx);
             workspace.focused_window_idx = below_idx;
         },

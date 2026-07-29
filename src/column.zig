@@ -114,6 +114,22 @@ pub fn normalize(items: anytype) void {
     }
 }
 
+/// Whether the window at `idx` has another window above it inside its own
+/// column. False for a head, which is already the top, and for a floating
+/// window, which is in no column. This is what decides whether vertical
+/// movement stays in the stack or falls through to the workspace above.
+pub fn hasAbove(items: anytype, idx: usize) bool {
+    return !items[idx].is_floating and items[idx].stacked;
+}
+
+/// Whether the window at `idx` has another window below it inside its own
+/// column. The next tiled window starts a new column unless it is stacked.
+pub fn hasBelow(items: anytype, idx: usize) bool {
+    if (items[idx].is_floating) return false;
+    const below = nextTiled(items, idx) orelse return false;
+    return items[below].stacked;
+}
+
 /// Height of the next slot when `remaining` windows still have to fit into
 /// `remaining_height`, with `gap` between each pair.
 ///
@@ -216,6 +232,42 @@ test "normalize repairs an orphaned member and a stacked floating window" {
     normalize(&items);
     try std.testing.expect(!items[0].stacked); // first tiled window is a head
     try std.testing.expect(!items[2].stacked); // floating is never a member
+}
+
+test "vertical movement falls through only at the ends of a column" {
+    // column A = {0,1,2}, column B = {3}
+    var items = build("hssh");
+
+    // Top member: nothing above, so up leaves the workspace; down stays.
+    try std.testing.expect(!hasAbove(&items, 0));
+    try std.testing.expect(hasBelow(&items, 0));
+    // Middle member: stays in the column both ways.
+    try std.testing.expect(hasAbove(&items, 1));
+    try std.testing.expect(hasBelow(&items, 1));
+    // Bottom member: down leaves the workspace.
+    try std.testing.expect(hasAbove(&items, 2));
+    try std.testing.expect(!hasBelow(&items, 2));
+    // A column of one falls through in both directions, which is what makes
+    // this safe to bind over plain workspace switching.
+    try std.testing.expect(!hasAbove(&items, 3));
+    try std.testing.expect(!hasBelow(&items, 3));
+}
+
+test "an unstacked workspace always falls through" {
+    var items = build("hhh");
+    for (0..3) |i| {
+        try std.testing.expect(!hasAbove(&items, i));
+        try std.testing.expect(!hasBelow(&items, i));
+    }
+}
+
+test "a floating window never traps vertical movement" {
+    // Floating window between two members of one column.
+    var items = build("hfsh");
+    try std.testing.expect(!hasAbove(&items, 1));
+    try std.testing.expect(!hasBelow(&items, 1));
+    // ...and it does not hide the member below from the head.
+    try std.testing.expect(hasBelow(&items, 0));
 }
 
 test "a split column tiles its slot exactly, whatever the rounding" {
