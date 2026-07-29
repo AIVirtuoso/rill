@@ -483,7 +483,13 @@ fn keybindingPressed(
         },
         .spawn => |command| {
             _ = std.process.spawn(io, .{ .argv = command }) catch |err| {
-                std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
+                // basename, not the full argv[0]: commands are routinely
+                // absolute paths under $HOME, which puts the user's name in
+                // the log.
+                std.debug.print("Failed to spawn {s}: {}\n", .{
+                    Io.Dir.path.basename(command[0]),
+                    err,
+                });
             };
             return;
         },
