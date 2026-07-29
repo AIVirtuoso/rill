@@ -57,15 +57,25 @@ fn find(
     );
     defer allocator.free(content);
 
-    const config = try std.zon.parse.fromSliceAlloc(
+    // Without diagnostics a malformed config is reported as a bare
+    // error.ParseZon, and since load() then falls back to the built-in
+    // defaults the user silently loses every keybinding with no clue which
+    // field was at fault. Diagnostics report only line, column, field name
+    // and the supported alternatives, so this is safe to paste into a bug
+    // report.
+    var diagnostics: std.zon.parse.Diagnostics = .{};
+    defer diagnostics.deinit(allocator);
+
+    return std.zon.parse.fromSliceAlloc(
         *types.Config,
         allocator,
         content,
-        null,
+        &diagnostics,
         .{},
-    );
-
-    return config;
+    ) catch |err| {
+        std.debug.print("{f}", .{&diagnostics});
+        return err;
+    };
 }
 
 test "validate default config file" {
