@@ -5,6 +5,7 @@ const wayland = @import("wayland");
 const river = wayland.client.river;
 
 const types = @import("types.zig");
+const column_math = @import("column.zig");
 
 const edges = river.WindowV1.Edges{
     .top = true,
@@ -47,11 +48,13 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
             var rectangle: types.Rectangle = undefined;
 
             // Rule-floated windows keep their own geometry and occupy no slot
-            // in the scroll chain.
-            var tiled_count: usize = 0;
+            // in the scroll chain. Columns are counted rather than windows:
+            // `.single` means one column filling the screen, which is still
+            // true when that column has been split between several windows.
+            var column_count: usize = 0;
             for (workspace.window_list.items) |*window| {
                 if (!window.is_floating) {
-                    tiled_count += 1;
+                    if (!window.stacked) column_count += 1;
                     continue;
                 }
                 window.start = window.current;
@@ -65,7 +68,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
             const should_center = switch (config.center_focused_window) {
                 .never => false,
                 .always => true,
-                .single => tiled_count == 1,
+                .single => column_count == 1,
             };
 
             // The chain is anchored on the focused window, or on the nearest
@@ -84,47 +87,52 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
                 }
                 break :blk null;
             } orelse continue;
-            const anchor_window = &workspace.window_list.items[anchor_idx];
+
+            // The chain is a chain of columns, not of windows: a column takes
+            // one slot and its members divide that slot's height. A column of
+            // one is the whole slot, so an unstacked workspace lays out
+            // exactly as it did before columns existed.
+            const anchor_head_idx = workspace.columnHead(anchor_idx);
 
             focusedWindowLayout(
-                anchor_window,
+                &workspace.window_list.items[anchor_head_idx],
                 &rectangle,
                 output,
                 config,
                 y_offset,
                 should_center,
             );
-            anchor_window.finish = rectangle;
+            const anchor_column_x = rectangle.x;
+            placeColumn(workspace, anchor_head_idx, rectangle, output, config, y_offset);
 
             rectangle.x += rectangle.width + config.horizontal_gap;
-            for (workspace.window_list.items[anchor_idx + 1 ..]) |*window| {
-                if (window.is_floating) continue;
+            var forward_idx = workspace.nextColumn(anchor_head_idx);
+            while (forward_idx) |head_idx| {
                 unfocusedWindowLayout(
-                    window,
+                    &workspace.window_list.items[head_idx],
                     &rectangle,
                     output,
                     config,
                     y_offset,
                 );
-                window.finish = rectangle;
+                placeColumn(workspace, head_idx, rectangle, output, config, y_offset);
                 rectangle.x += rectangle.width + config.horizontal_gap;
+                forward_idx = workspace.nextColumn(head_idx);
             }
 
-            rectangle.x = anchor_window.finish.?.x;
-            var window_idx = anchor_idx;
-            while (window_idx > 0) {
-                window_idx -= 1;
-                const window = &workspace.window_list.items[window_idx];
-                if (window.is_floating) continue;
+            rectangle.x = anchor_column_x;
+            var backward_idx = workspace.previousColumn(anchor_head_idx);
+            while (backward_idx) |head_idx| {
                 unfocusedWindowLayout(
-                    window,
+                    &workspace.window_list.items[head_idx],
                     &rectangle,
                     output,
                     config,
                     y_offset,
                 );
                 rectangle.x -= config.horizontal_gap + rectangle.width;
-                window.finish = rectangle;
+                placeColumn(workspace, head_idx, rectangle, output, config, y_offset);
+                backward_idx = workspace.previousColumn(head_idx);
             }
 
             if (!should_center) snapToEdge(
@@ -149,6 +157,60 @@ fn floatingLayout(
         }
         window.start = window.current;
         window.finish.?.y += y_offset;
+    }
+}
+
+/// Divide a column's slot between the windows sharing it and commit the
+/// result. A column of one gets the slot unchanged, so nothing about an
+/// unstacked workspace changes.
+///
+/// Heights are recomputed from the space still unassigned on each step rather
+/// than from a single `height / count`, so the rounding error is spread over
+/// the members and the last one always lands exactly on the bottom edge
+/// instead of leaving a stray pixel gap.
+fn placeColumn(
+    workspace: types.Workspace,
+    head_idx: usize,
+    column: types.Rectangle,
+    output: *types.Output,
+    config: types.Config,
+    y_offset: i32,
+) void {
+    const items = workspace.window_list.items;
+    const count = workspace.columnLen(head_idx);
+
+    var y = column.y;
+    var placed: usize = 0;
+    var idx = head_idx;
+    while (true) {
+        const window = &items[idx];
+        window.start = window.current;
+
+        const slot: types.Rectangle = if (count == 1) column else blk: {
+            const height = column_math.slotHeight(
+                column.y + column.height - y,
+                config.vertical_gap,
+                @intCast(count - placed),
+            );
+            defer y += height + config.vertical_gap;
+            break :blk .{
+                .width = column.width,
+                .height = height,
+                .x = column.x,
+                .y = y,
+            };
+        };
+
+        if (window.is_fullscreen) {
+            window.finish = output.rectangle;
+            window.finish.?.y += y_offset;
+        } else {
+            window.finish = slot;
+        }
+
+        placed += 1;
+        if (placed == count) break;
+        idx = types.nextTiled(items, idx) orelse break;
     }
 }
 
@@ -187,8 +249,6 @@ fn focusedWindowLayout(
         rectangle.* = output.rectangle;
         rectangle.y += y_offset;
     }
-
-    window.start = window.current;
 }
 
 fn unfocusedWindowLayout(
@@ -211,7 +271,6 @@ fn unfocusedWindowLayout(
         rectangle.height = non_exclusive.height - 2 * config.vertical_gap;
         rectangle.y = non_exclusive.y + config.vertical_gap + y_offset;
     }
-    window.start = window.current;
 }
 
 fn snapToEdge(

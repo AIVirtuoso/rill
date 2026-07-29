@@ -5,6 +5,8 @@ const Io = std.Io;
 const wayland = @import("wayland");
 const river = wayland.client.river;
 
+const column = @import("column.zig");
+
 pub const WindowManager = struct {
     allocator: Allocator,
     io: Io,
@@ -63,16 +65,57 @@ pub const Window = struct {
     /// Such a window keeps following the dimensions the client reports instead
     /// of being held at a fixed proportion of the output.
     float_client_size: bool,
+    /// This window shares a column with the tiled window before it in the
+    /// list, splitting that column's height rather than taking a slot of its
+    /// own in the scroll chain. A column is therefore a run of consecutive
+    /// tiled windows: a head with `stacked == false`, followed by its members.
+    /// Floating windows belong to no column and are transparent to the run, so
+    /// one sitting between two tiled windows does not split their column.
+    stacked: bool,
     floating: Rectangle,
     current: Rectangle,
     start: ?Rectangle,
     finish: ?Rectangle,
 };
 
+pub const previousTiled = column.previousTiled;
+pub const nextTiled = column.nextTiled;
+
+/// The column arithmetic lives in `column.zig`, which knows nothing about
+/// wayland and is unit-tested on its own. These are thin bindings of it to the
+/// window list, so the tested code is the code that runs.
 pub const Workspace = struct {
     window_list: std.ArrayList(Window) = .empty,
     focused_window_idx: ?usize = null,
     is_floating: bool = false,
+
+    pub fn columnHead(self: Workspace, idx: usize) usize {
+        return column.head(self.window_list.items, idx);
+    }
+
+    pub fn columnLen(self: Workspace, head_idx: usize) usize {
+        return column.len(self.window_list.items, head_idx);
+    }
+
+    pub fn columnEnd(self: Workspace, idx: usize) usize {
+        return column.end(self.window_list.items, idx);
+    }
+
+    pub fn previousColumn(self: Workspace, idx: usize) ?usize {
+        return column.previous(self.window_list.items, idx);
+    }
+
+    pub fn nextColumn(self: Workspace, idx: usize) ?usize {
+        return column.next(self.window_list.items, idx);
+    }
+
+    pub fn detachFromColumn(self: *Workspace, idx: usize) void {
+        column.detach(self.window_list.items, idx);
+    }
+
+    pub fn normalizeColumns(self: *Workspace) void {
+        column.normalize(self.window_list.items);
+    }
 };
 
 pub const Output = struct {
@@ -200,8 +243,13 @@ pub const KeybindingAction = union(enum) {
     focus_window_or_output_left: void,
     focus_window_right: void,
     focus_window_or_output_right: void,
+    focus_window_up: void,
+    focus_window_down: void,
     move_window_left: void,
     move_window_right: void,
+    move_window_up: void,
+    move_window_down: void,
+    toggle_window_stacked: void,
     move_window_left_or_to_output_left: void,
     move_window_right_or_to_output_right: void,
     toggle_workspace_floating: void,
