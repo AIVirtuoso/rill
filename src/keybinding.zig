@@ -145,7 +145,9 @@ fn keybindingPressed(
         },
         .focus_window_or_output_left => {
             const window_idx = workspace.focused_window_idx orelse return;
-            if (workspace.is_floating or window_idx == 0) {
+            // The edge of the chain is the edge of the leftmost *column*: a
+            // member of it is at the edge too, even though its index is not 0.
+            if (workspace.is_floating or workspace.columnHead(window_idx) == 0) {
                 continue :action_switch .focus_output_left;
             }
             continue :action_switch .focus_window_left;
@@ -159,7 +161,9 @@ fn keybindingPressed(
         },
         .focus_window_or_output_right => {
             const window_idx = workspace.focused_window_idx orelse return;
-            if (workspace.is_floating or window_idx == workspace.window_list.items.len - 1) {
+            if (workspace.is_floating or
+                workspace.columnEnd(window_idx) >= workspace.window_list.items.len)
+            {
                 continue :action_switch .focus_output_right;
             }
             continue :action_switch .focus_window_right;
