@@ -15,8 +15,12 @@ const types = @import("types.zig");
 const window = @import("window.zig");
 
 pub fn main(init: std.process.Init) !void {
+    // SIG_DFL rather than SIG_IGN: execve() clears sa_flags for every signal
+    // but preserves an *ignored* disposition, so SIG_IGN would leak into every
+    // spawned application and make its waitpid() return ECHILD. SA_NOCLDWAIT
+    // does the reaping and does not survive exec, which is what we want.
     const sa = std.posix.Sigaction{
-        .handler = .{ .handler = std.posix.SIG.IGN },
+        .handler = .{ .handler = std.posix.SIG.DFL },
         .mask = std.posix.sigemptyset(),
         .flags = std.posix.SA.NOCLDWAIT,
     };
