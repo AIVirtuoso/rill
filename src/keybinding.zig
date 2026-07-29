@@ -563,21 +563,38 @@ fn keybindingPressed(
             return;
         },
         .spawn => |command| {
-            _ = std.process.spawn(io, .{ .argv = command }) catch |err| {
-                // basename, not the full argv[0]: commands are routinely
-                // absolute paths under $HOME, which puts the user's name in
-                // the log.
-                std.debug.print("Failed to spawn {s}: {}\n", .{
-                    Io.Dir.path.basename(command[0]),
-                    err,
-                });
-            };
+            spawnDetached(io, command);
             return;
         },
     }
 
     layout.update(wm.output_list, wm.getConfig());
     wm.status = .layout;
+}
+
+/// Spawn a command with its output discarded.
+///
+/// A child otherwise inherits rill's stdout and stderr, and rill spawns
+/// everything the user launches, so whatever rill's own output is pointed at
+/// fills up with browser and toolkit chatter instead: measured at 2 useful
+/// lines out of 57 in a real session log. A window manager is not a terminal.
+/// Run a program from one when you want to read what it prints.
+///
+/// stdin is left alone: it is not a source of noise, and a child that reads it
+/// should get whatever the session was given rather than a surprise EOF.
+pub fn spawnDetached(io: Io, argv: []const []const u8) void {
+    _ = std.process.spawn(io, .{
+        .argv = argv,
+        .stdout = .ignore,
+        .stderr = .ignore,
+    }) catch |err| {
+        // basename, not the full argv[0]: commands are routinely absolute
+        // paths under $HOME, which puts the user's name in the log.
+        std.debug.print("Failed to spawn {s}: {}\n", .{
+            Io.Dir.path.basename(argv[0]),
+            err,
+        });
+    };
 }
 
 /// Exchange two windows, leaving the column structure where it is. `stacked`

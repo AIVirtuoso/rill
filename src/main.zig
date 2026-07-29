@@ -71,14 +71,7 @@ pub fn main(init: std.process.Init) !void {
     window_manager.setListener(*types.WindowManager, windowManagerListener, &wm);
 
     for (wm.getConfig().spawn_at_startup) |command| {
-        _ = std.process.spawn(wm.io, .{ .argv = command }) catch |err| {
-            // basename, not the full argv[0]: commands are routinely absolute
-            // paths under $HOME, which puts the user's name in the log.
-            std.debug.print("Failed to spawn {s}: {}\n", .{
-                Io.Dir.path.basename(command[0]),
-                err,
-            });
-        };
+        keybinding.spawnDetached(wm.io, command);
     }
 
     while (true) {
