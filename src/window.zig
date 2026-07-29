@@ -99,6 +99,7 @@ pub fn windowListener(
                             workspace.focused_window_idx = window_idx - 1;
                         }
 
+                        workspace.detachFromColumn(idx);
                         _ = workspace.window_list.orderedRemove(idx);
                         river_window.destroy();
                     },
@@ -219,6 +220,8 @@ fn add(
         .is_closing = false,
         .is_floating = is_floating,
         .float_client_size = float_client_size,
+        // A new window always opens as its own column; stacking is explicit.
+        .stacked = false,
         .floating = rectangle,
         .current = rectangle,
         .start = null,
@@ -227,7 +230,7 @@ fn add(
 
     const workspace = &output.workspace_list[output.focused_workspace_idx];
     var window_idx: usize = 0;
-    if (workspace.focused_window_idx) |idx| window_idx = idx + 1;
+    if (workspace.focused_window_idx) |idx| window_idx = workspace.columnEnd(idx);
     try workspace.window_list.insert(allocator, window_idx, window);
     workspace.focused_window_idx = window_idx;
 }
