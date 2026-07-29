@@ -7,6 +7,7 @@
 # driven through river's zwp_virtual_keyboard_manager_v1, so a test is a shell
 # script rather than a person pressing keys.
 #
+#   ./test/nested.sh test          run the column unit tests
 #   ./test/nested.sh up            build, then start nested rill in a window
 #   ./test/nested.sh key alt Return   send a keystroke to it
 #   ./test/nested.sh spawn NAME    open a labelled terminal inside it
@@ -21,7 +22,40 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 run="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/rill-nested"
-deps=${RILL_ZIG_DEPS:-/nix/store/5l8xnwqg9s50z75qz878jccpmpinym7j-rill-0.6.0-zig-deps}
+pkg=${RILL_NIX_PKG:-/etc/nixos/pkgs/rill.nix}
+
+# Nothing here needs zig, wtype, lswt or grim installed: nix provides them.
+# The zig dependency linkFarm is resolved from the package rather than pinned
+# to a store path, which would be a path with no GC root -- the first
+# nix-collect-garbage would delete it and break the harness.
+zig_deps() {
+	if [ -n "${RILL_ZIG_DEPS:-}" ]; then
+		echo "$RILL_ZIG_DEPS"
+		return
+	fi
+	nix build --no-link --print-out-paths --impure \
+		--expr "with import <nixpkgs> {}; (callPackage $pkg {}).deps"
+}
+
+# Compiling rill needs pkg-config pointed at the *dev* outputs of wayland and
+# libxkbcommon, which is what `nix develop` sets up; the default outputs carry
+# no headers or .pc files, so having them installed would not be enough. zig
+# comes from the same environment, so nothing has to be installed to build.
+in_build_env() {
+	nix develop --impure --expr \
+		"with import <nixpkgs> {}; callPackage $pkg {}" \
+		--command sh -c "$1"
+}
+
+# src/column.zig imports only std, so the unit tests need nothing but zig and
+# run straight away when it is installed.
+with_zig() {
+	if command -v zig >/dev/null 2>&1; then
+		sh -c "$1"
+	else
+		in_build_env "$1"
+	fi
+}
 
 # The nested display, written by the init script once river is up.
 display_file="$run/display"
@@ -49,9 +83,13 @@ tool() {
 
 case "${1:-}" in
 build)
-	nix develop --impure --expr \
-		"with import <nixpkgs> {}; callPackage /etc/nixos/pkgs/rill.nix {}" \
-		--command sh -c "cd '$root' && zig build --system '$deps' --prefix '$run/out'"
+	in_build_env "cd '$root' && zig build --system '$(zig_deps)' --prefix '$run/out'"
+	;;
+
+# The pure column arithmetic, which needs no compositor. Separate from
+# `zig build test`, which SEGVs the 0.16 compiler (on upstream main too).
+test)
+	with_zig "cd '$root' && zig test src/column.zig"
 	;;
 
 up)
