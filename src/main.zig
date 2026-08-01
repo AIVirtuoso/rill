@@ -15,13 +15,6 @@ const types = @import("types.zig");
 const window = @import("window.zig");
 
 pub fn main(init: std.process.Init) !void {
-    const sa = std.posix.Sigaction{
-        .handler = .{ .handler = std.posix.SIG.IGN },
-        .mask = std.posix.sigemptyset(),
-        .flags = std.posix.SA.NOCLDWAIT,
-    };
-    std.posix.sigaction(std.posix.SIG.CHLD, &sa, null);
-
     // Die when our parent (typically river -c rill) dies, so we don't
     // get reparented to init and outlive the session if river crashes
     // or is killed.

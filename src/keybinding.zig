@@ -525,9 +525,14 @@ fn keybindingPressed(
             return;
         },
         .spawn => |command| {
-            _ = std.process.spawn(io, .{ .argv = command }) catch |err| {
-                std.debug.print("Failed to spawn {s}: {}\n", .{ command[0], err });
-            };
+            const pid = std.posix.system.fork();
+            if (pid < 0) {
+                return error.ForkFailed;
+            } else if (pid == 0) {
+                _ = try std.process.spawn(io, .{ .argv = command });
+                std.process.exit(0);
+            }
+            _ = std.posix.system.waitpid(pid, null, 0);
             return;
         },
     }
