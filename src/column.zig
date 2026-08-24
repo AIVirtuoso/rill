@@ -96,11 +96,16 @@ pub fn detach(items: anytype, idx: usize) void {
     if (items[next_idx].stacked) items[next_idx].stacked = false;
 }
 
-/// Restore the two invariants the layout relies on: a floating window is never
-/// a column member, and the first tiled window is always a head. Cheap enough
-/// to call after any reordering rather than reasoning about which swaps can
-/// break them.
-pub fn normalize(items: anytype) void {
+/// Restore the three invariants the layout and the keybindings rely on: a
+/// floating window is never a column member, the first tiled window is always
+/// a head, and no floating window sits between two windows of the same column.
+/// Cheap enough to call after any reordering rather than reasoning about which
+/// swaps can break which invariant.
+///
+/// `focused_idx` is carried through because the third invariant moves windows:
+/// it is rewritten to keep naming the same window, so callers can set the
+/// focus before normalising and still be pointing at what they meant.
+pub fn normalize(items: anytype, focused_idx: *?usize) void {
     var seen_tiled = false;
     for (items) |*window| {
         if (window.is_floating) {
@@ -111,6 +116,46 @@ pub fn normalize(items: anytype) void {
             window.stacked = false;
             seen_tiled = true;
         }
+    }
+
+    // A column is a run of consecutive tiled windows and the walks skip
+    // floating ones, so a float whose *index* falls inside a run is invisible
+    // to both `end` (which steps past it) and `head` (which resolves the tiled
+    // window after it back to the head before it). Such a window cannot be
+    // reached with focus_window_left or focus_window_right at all - only by
+    // clicking it. Lifting it to just past the column restores contiguity
+    // without disturbing the column: `stacked` travels with the tiled windows
+    // here, because the run's composition is unchanged and only the float is
+    // leaving it.
+    var idx: usize = 0;
+    while (idx < items.len) {
+        if (!items[idx].is_floating) {
+            idx += 1;
+            continue;
+        }
+
+        var last = idx;
+        while (nextTiled(items, last)) |next_idx| {
+            if (!items[next_idx].stacked) break;
+            last = next_idx;
+        }
+        if (last == idx) {
+            idx += 1;
+            continue;
+        }
+
+        std.mem.rotate(std.meta.Elem(@TypeOf(items)), items[idx .. last + 1], 1);
+        if (focused_idx.*) |focused| {
+            if (focused == idx) {
+                focused_idx.* = last;
+            } else if (focused > idx and focused <= last) {
+                focused_idx.* = focused - 1;
+            }
+        }
+        // `idx` is deliberately not advanced: the slot now holds whatever
+        // followed the float, which may be another float embedded in the same
+        // column. Every rotation moves one float strictly later and none ever
+        // moves earlier, so this terminates.
     }
 }
 
@@ -229,9 +274,86 @@ test "detaching a member leaves the column alone" {
 test "normalize repairs an orphaned member and a stacked floating window" {
     var items = build("shf");
     items[2].stacked = true;
-    normalize(&items);
+    var focused: ?usize = null;
+    normalize(&items, &focused);
     try std.testing.expect(!items[0].stacked); // first tiled window is a head
     try std.testing.expect(!items[2].stacked); // floating is never a member
+}
+
+/// What `focus_window_right` computes, so the reachability claim below is
+/// tested against the arithmetic the keybinding actually runs rather than
+/// against `next`, which walks the *layout's* column chain and ignores
+/// floating windows by design.
+fn focusRight(items: anytype, idx: usize) ?usize {
+    const next_idx = end(items, idx);
+    if (next_idx >= items.len) return null;
+    return next_idx;
+}
+
+/// What `focus_window_left` computes.
+fn focusLeft(items: anytype, idx: usize) ?usize {
+    const head_idx = head(items, idx);
+    if (head_idx == 0) return null;
+    return head(items, head_idx - 1);
+}
+
+test "a floating window buried in a column is unreachable until normalized" {
+    // "hfs": the float sits between a head and its member. Horizontal focus
+    // steps over the whole column, and the column's indices straddle the
+    // float, so neither direction can ever land on it.
+    var items = build("hfs");
+    // Both directions dead-end: right runs past the end of the list, and left
+    // from the member resolves to the head, which is already the leftmost
+    // column. Nothing ever names index 1.
+    try std.testing.expectEqual(@as(?usize, null), focusRight(&items, 0));
+    try std.testing.expectEqual(@as(?usize, null), focusLeft(&items, 2));
+
+    var focused: ?usize = 1;
+    normalize(&items, &focused);
+
+    try std.testing.expect(items[2].is_floating);
+    // The column survives the move intact: head, then its member.
+    try std.testing.expect(!items[0].stacked);
+    try std.testing.expect(items[1].stacked);
+    try std.testing.expectEqual(@as(usize, 2), len(&items, 0));
+    // And the float is reachable from both sides now.
+    try std.testing.expectEqual(@as(?usize, 2), focusRight(&items, 0));
+    try std.testing.expectEqual(@as(?usize, 0), focusLeft(&items, 2));
+    // The focus followed the window it was naming.
+    try std.testing.expectEqual(@as(?usize, 2), focused);
+}
+
+test "normalize lifts several floats out of one column" {
+    // Two floats buried in a three-window column, which a single forward pass
+    // would leave half-repaired.
+    var items = build("hffss");
+    var focused: ?usize = 3;
+    normalize(&items, &focused);
+
+    try std.testing.expectEqual(@as(usize, 3), len(&items, 0));
+    for (0..3) |i| try std.testing.expect(!items[i].is_floating);
+    for (3..5) |i| try std.testing.expect(items[i].is_floating);
+
+    // Stepping right from the head visits both floats and then stops.
+    try std.testing.expectEqual(@as(?usize, 3), focusRight(&items, 0));
+    try std.testing.expectEqual(@as(?usize, 4), focusRight(&items, 3));
+    try std.testing.expectEqual(@as(?usize, null), focusRight(&items, 4));
+    // And stepping back gets to the column head from either of them.
+    try std.testing.expectEqual(@as(?usize, 3), focusLeft(&items, 4));
+    try std.testing.expectEqual(@as(?usize, 0), focusLeft(&items, 3));
+
+    // Focus was on the first stacked member, which moved down two slots.
+    try std.testing.expectEqual(@as(?usize, 1), focused);
+}
+
+test "normalize leaves a float that is not buried exactly where it is" {
+    // Between two columns, and after the last one: both are legal positions.
+    var items = build("hsfhf");
+    var focused: ?usize = 2;
+    const before = items;
+    normalize(&items, &focused);
+    try std.testing.expectEqualSlices(TestWindow, &before, &items);
+    try std.testing.expectEqual(@as(?usize, 2), focused);
 }
 
 test "vertical movement falls through only at the ends of a column" {

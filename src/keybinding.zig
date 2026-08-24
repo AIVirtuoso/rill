@@ -222,6 +222,7 @@ fn keybindingPressed(
             const above_idx = types.previousTiled(items, window_idx) orelse return;
             swapWindows(items, window_idx, above_idx);
             workspace.focused_window_idx = above_idx;
+            workspace.normalizeColumns();
         },
         .move_window_down => {
             if (workspace.is_floating) return;
@@ -231,6 +232,7 @@ fn keybindingPressed(
             const below_idx = types.nextTiled(items, window_idx) orelse return;
             swapWindows(items, window_idx, below_idx);
             workspace.focused_window_idx = below_idx;
+            workspace.normalizeColumns();
         },
         .toggle_window_stacked => {
             if (workspace.is_floating) return;
@@ -247,6 +249,10 @@ fn keybindingPressed(
                 if (types.previousTiled(workspace.window_list.items, window_idx) == null) return;
                 window.stacked = true;
             }
+            // Stacking reaches over any floating window in between, which
+            // would leave that window buried in the middle of the new column
+            // and unreachable by horizontal focus.
+            workspace.normalizeColumns();
         },
         .move_window_left => {
             if (workspace.is_floating) return;

@@ -115,8 +115,10 @@ pub const Workspace = struct {
         column.detach(self.window_list.items, idx);
     }
 
+    /// Also rewrites `focused_window_idx` when repairing the list moves the
+    /// window it names, so callers may set the focus first and normalise after.
     pub fn normalizeColumns(self: *Workspace) void {
-        column.normalize(self.window_list.items);
+        column.normalize(self.window_list.items, &self.focused_window_idx);
     }
 };
 
