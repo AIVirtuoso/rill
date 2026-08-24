@@ -27,6 +27,34 @@
     // .cursor = .{ .theme = "Adwaita", .size = 24 },
     .cursor = null,
 
+    // Size of a window floated by a window rule, as a proportion of the
+    // output's available area. Such a window is centred, so it reads as an
+    // overlay rather than filling a tile-shaped slot. A value outside
+    // 0.05..1.0 describes nothing that can be drawn and is clamped, with a
+    // message on stderr saying so.
+    .float_width = 0.6,
+    .float_height = 0.6,
+
+    // Windows matched by a rule are floated instead of taking a slot in the
+    // scroll chain: they keep their own geometry, stay above the tiled
+    // windows, and can be moved and resized with the pointer bindings below
+    // even on a tiled workspace.
+    //
+    // A rule matches on app_id, title, or both; an omitted pattern is
+    // unconstrained, so a rule with neither is ignored rather than matching
+    // everything. Do not guess an app_id -- read it off the running window
+    // with a tool such as `lswt`, since some windows set none at all and can
+    // only be matched by title.
+    //
+    // .float_size decides how large a floated window is:
+    //   .proportion  (default) float_width by float_height of the output
+    //   .client      whatever size the window asks for, centred -- use this
+    //                for a dialog that would otherwise be clipped
+    .window_rules = .{
+        // .{ .app_id = "com.gabm.satty", .float = true },
+        // .{ .title = "Polkit Agent", .float = true, .float_size = .client },
+    },
+
     .spawn_at_startup = .{
         // .{"awww-daemon"},
         // .{ "wl-clip-persist", "--clipboard", "both" },
