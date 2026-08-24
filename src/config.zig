@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
+const float = @import("float.zig");
 const types = @import("types.zig");
 
 const Location = enum { XDG_CONFIG_HOME, HOME };
@@ -66,7 +67,7 @@ fn find(
     var diagnostics: std.zon.parse.Diagnostics = .{};
     defer diagnostics.deinit(allocator);
 
-    return std.zon.parse.fromSliceAlloc(
+    const config = std.zon.parse.fromSliceAlloc(
         *types.Config,
         allocator,
         content,
@@ -76,6 +77,31 @@ fn find(
         std.debug.print("{f}", .{&diagnostics});
         return err;
     };
+
+    validate(config);
+    return config;
+}
+
+/// Values the parser accepts but the layout cannot use. These are corrected
+/// rather than rejected: a rejected config means falling back to the built-in
+/// defaults, i.e. losing every keybinding, which is a far worse outcome than a
+/// window of the nearest usable size. Both are reported, since a silent
+/// correction is indistinguishable from the setting having no effect.
+fn validate(config: *types.Config) void {
+    const proportions = .{ "float_width", "float_height" };
+    inline for (proportions) |name| {
+        const given = @field(config, name);
+        const clamped = float.clampProportion(given);
+        // NaN is caught here too: it compares unequal to everything,
+        // including the bound `clampProportion` collapses it to.
+        if (given != clamped) {
+            std.debug.print(
+                "{s} of {d} is outside {d}..{d}, using {d}\n",
+                .{ name, given, float.min_proportion, float.max_proportion, clamped },
+            );
+            @field(config, name) = clamped;
+        }
+    }
 }
 
 test "validate default config file" {

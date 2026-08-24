@@ -21,6 +21,7 @@ pub const WindowManager = struct {
     previous_workspace: ?struct { output_idx: usize, workspace_idx: usize },
     status: Status,
     config: ?*Config,
+    is_passthrough: bool = false,
     xkb_binding_list: std.ArrayList(struct {
         river_xkb_binding: *river.XkbBindingV1,
         action: KeybindingAction,
@@ -31,7 +32,7 @@ pub const WindowManager = struct {
     }),
 
     pub fn getConfig(self: *WindowManager) Config {
-        return if(self.config) |cfg| cfg.* else .{};
+        return if (self.config) |cfg| cfg.* else .{};
     }
 
     pub fn deinit(self: *WindowManager) void {
@@ -42,9 +43,10 @@ pub const WindowManager = struct {
         self.pointer_binding_list.deinit(self.allocator);
 
         for (self.output_list.items) |*output| {
-            for (&output.workspace_list) |*workspace| {
+            for (output.workspace_list.items) |*workspace| {
                 workspace.window_list.deinit(self.allocator);
             }
+            output.workspace_list.deinit(self.allocator);
         }
         self.output_list.deinit(self.allocator);
 
@@ -113,15 +115,17 @@ pub const Workspace = struct {
         column.detach(self.window_list.items, idx);
     }
 
+    /// Also rewrites `focused_window_idx` when repairing the list moves the
+    /// window it names, so callers may set the focus first and normalise after.
     pub fn normalizeColumns(self: *Workspace) void {
-        column.normalize(self.window_list.items);
+        column.normalize(self.window_list.items, &self.focused_window_idx);
     }
 };
 
 pub const Output = struct {
     river_output: *river.OutputV1,
     river_layer_shell_output: ?*river.LayerShellOutputV1,
-    workspace_list: [10]Workspace,
+    workspace_list: std.ArrayList(Workspace) = .empty,
     focused_workspace_idx: usize,
     rectangle: Rectangle,
     non_exclusive: Rectangle,
@@ -150,6 +154,7 @@ pub const Config = struct {
     default_window_width: f32 = 0.5,
     center_focused_window: enum { never, always, single } = .never,
     no_csd: bool = true,
+    dynamic_workspaces: bool = false,
     animation_duration: u32 = 200,
     border: Border = .{
         .width = 3,
@@ -167,16 +172,16 @@ pub const Config = struct {
     pointer_bindings: []const PointerBinding = &default_pointer_bindings,
 };
 
-/// Matched against a window's app_id and title when it is first mapped. Both
-/// patterns are optional and a null pattern is unconstrained, so a rule with
-/// neither set is inert rather than applying to every window. When both are
-/// set, both must match. Some windows set no app_id at all (hyprpolkitagent,
-/// for one), which is why matching on title is supported.
 /// How a floated window is sized. `proportion` uses float_width/float_height
 /// of the output; `client` uses whatever dimensions the window picks for
 /// itself, which is what a dialog that has a natural size wants.
 pub const FloatSize = enum { proportion, client };
 
+/// Matched against a window's app_id and title when it is first mapped. Both
+/// patterns are optional and a null pattern is unconstrained, so a rule with
+/// neither set is inert rather than applying to every window. When both are
+/// set, both must match. Some windows set no app_id at all (hyprpolkitagent,
+/// for one), which is why matching on title is supported.
 pub const WindowRule = struct {
     app_id: ?[:0]const u8 = null,
     title: ?[:0]const u8 = null,
@@ -235,6 +240,7 @@ pub const KeybindingAction = union(enum) {
     close_window: void,
     toggle_fullscreen: void,
     toggle_maximize_column: void,
+    toggle_passthrough: void,
     adjust_window_width: f32,
     set_window_width: f32,
     focus_window_left: void,
@@ -264,6 +270,11 @@ pub const KeybindingAction = union(enum) {
     move_window_to_workspace_or_output_above: void,
     move_window_to_workspace_or_output_below: void,
     move_window_to_workspace_number: usize,
+    send_window_to_workspace_above: void,
+    send_window_to_workspace_below: void,
+    send_window_to_workspace_or_output_above: void,
+    send_window_to_workspace_or_output_below: void,
+    send_window_to_workspace_number: usize,
     focus_output_left: void,
     focus_output_right: void,
     focus_output_above: void,
@@ -272,6 +283,10 @@ pub const KeybindingAction = union(enum) {
     move_window_to_output_right: void,
     move_window_to_output_above: void,
     move_window_to_output_below: void,
+    send_window_to_output_left: void,
+    send_window_to_output_right: void,
+    send_window_to_output_above: void,
+    send_window_to_output_below: void,
     exit: void,
     reload_config: void,
     spawn: []const []const u8,

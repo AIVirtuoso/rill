@@ -14,7 +14,7 @@ pub fn seatListener(
 ) void {
     const output_idx = wm.focused_output_idx orelse return;
     const output = &wm.output_list.items[output_idx];
-    const workspace = output.workspace_list[output.focused_workspace_idx];
+    const workspace = output.workspace_list.items[output.focused_workspace_idx];
     const window_idx = workspace.focused_window_idx orelse return;
     const window = &workspace.window_list.items[window_idx];
 
@@ -24,7 +24,7 @@ pub fn seatListener(
 
             for (wm.output_list.items, 0..) |*target_output, target_output_idx| {
                 const target_workspace =
-                    &target_output.workspace_list[target_output.focused_workspace_idx];
+                    &target_output.workspace_list.items[target_output.focused_workspace_idx];
 
                 for (target_workspace.window_list.items, 0..) |target_window, target_window_idx| {
                     if (target_window.river_window != interaction.window) continue;
@@ -48,10 +48,15 @@ pub fn seatListener(
         .op_delta => |delta| {
             const start = window.start orelse return;
 
-            const output_left = output.rectangle.x;
-            const output_right = output.rectangle.x + output.rectangle.width;
-            const output_top = output.rectangle.y;
-            const output_bottom = output.rectangle.y + output.rectangle.height;
+            // Clamped to the non-exclusive area rather than the whole output:
+            // that is the region every floating rectangle is computed against,
+            // so clamping to `output.rectangle` here would let a window be
+            // dragged under a layer-shell bar and then be snapped back out by
+            // the next layout pass.
+            const output_left = output.non_exclusive.x;
+            const output_right = output.non_exclusive.x + output.non_exclusive.width;
+            const output_top = output.non_exclusive.y;
+            const output_bottom = output.non_exclusive.y + output.non_exclusive.height;
 
             switch (wm.status.pointer_action) {
                 .move_window => {
@@ -112,13 +117,15 @@ fn pointerBindingListener(
     event: river.PointerBindingV1.Event,
     wm: *types.WindowManager,
 ) void {
+    if (wm.is_passthrough) return;
+
     for (wm.pointer_binding_list.items) |binding| {
         if (binding.river_pointer_binding != pointer_binding) continue;
         switch (event) {
             .pressed => {
                 const output_idx = wm.focused_output_idx orelse return;
                 const output = &wm.output_list.items[output_idx];
-                const workspace = output.workspace_list[output.focused_workspace_idx];
+                const workspace = output.workspace_list.items[output.focused_workspace_idx];
 
                 const window_idx = workspace.focused_window_idx orelse return;
                 const window = &workspace.window_list.items[window_idx];
@@ -152,7 +159,7 @@ pub fn pointerAction(
     config: types.Config,
 ) void {
     const output = output_list.items[focused_output_idx];
-    const workspace = output.workspace_list[output.focused_workspace_idx];
+    const workspace = output.workspace_list.items[output.focused_workspace_idx];
     const window_idx = workspace.focused_window_idx orelse return;
     const window = workspace.window_list.items[window_idx];
 

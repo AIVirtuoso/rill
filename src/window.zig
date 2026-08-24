@@ -85,7 +85,7 @@ pub fn windowListener(
     }
 
     for (wm.output_list.items) |*output| {
-        for (&output.workspace_list) |*workspace| {
+        for (output.workspace_list.items) |*workspace| {
             const window_idx = workspace.focused_window_idx orelse continue;
 
             for (workspace.window_list.items, 0..) |*window, idx| {
@@ -228,7 +228,7 @@ fn add(
         .finish = null,
     };
 
-    const workspace = &output.workspace_list[output.focused_workspace_idx];
+    const workspace = &output.workspace_list.items[output.focused_workspace_idx];
     var window_idx: usize = 0;
     if (workspace.focused_window_idx) |idx| window_idx = workspace.columnEnd(idx);
     try workspace.window_list.insert(allocator, window_idx, window);

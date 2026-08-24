@@ -12,10 +12,24 @@ pub fn add(
     river_output: *river.OutputV1,
     wm: *types.WindowManager,
 ) !void {
+    var workspaces: std.ArrayList(types.Workspace) = .empty;
+    var number_of_workspaces: i32 = 10;
+    if (wm.getConfig().dynamic_workspaces) {
+        number_of_workspaces = 1;
+    }
+    while (number_of_workspaces > 0) : (number_of_workspaces -= 1) {
+        const workspace = types.Workspace{
+            .window_list = .empty,
+            .focused_window_idx = null,
+            .is_floating = false,
+        };
+        try workspaces.append(allocator, workspace);
+    }
+
     const output = types.Output{
         .river_output = river_output,
         .river_layer_shell_output = getLayerShellOutput(river_output, wm),
-        .workspace_list = [_]types.Workspace{.{}} ** 10,
+        .workspace_list = workspaces,
         .focused_workspace_idx = 0,
         .rectangle = undefined,
         .non_exclusive = undefined,
