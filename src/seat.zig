@@ -48,10 +48,15 @@ pub fn seatListener(
         .op_delta => |delta| {
             const start = window.start orelse return;
 
-            const output_left = output.rectangle.x;
-            const output_right = output.rectangle.x + output.rectangle.width;
-            const output_top = output.rectangle.y;
-            const output_bottom = output.rectangle.y + output.rectangle.height;
+            // Clamped to the non-exclusive area rather than the whole output:
+            // that is the region every floating rectangle is computed against,
+            // so clamping to `output.rectangle` here would let a window be
+            // dragged under a layer-shell bar and then be snapped back out by
+            // the next layout pass.
+            const output_left = output.non_exclusive.x;
+            const output_right = output.non_exclusive.x + output.non_exclusive.width;
+            const output_top = output.non_exclusive.y;
+            const output_bottom = output.non_exclusive.y + output.non_exclusive.height;
 
             switch (wm.status.pointer_action) {
                 .move_window => {
