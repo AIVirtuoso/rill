@@ -6,6 +6,7 @@ const river = wayland.client.river;
 
 const types = @import("types.zig");
 const column_math = @import("column.zig");
+const float_math = @import("float.zig");
 
 const edges = river.WindowV1.Edges{
     .top = true,
@@ -57,6 +58,7 @@ pub fn update(output_list: std.ArrayList(types.Output), config: types.Config) vo
                     if (!window.stacked) column_count += 1;
                     continue;
                 }
+                window.floating = float_math.fitted(window.floating, output.non_exclusive);
                 window.start = window.current;
                 window.finish = if (window.is_fullscreen)
                     output.rectangle
@@ -150,6 +152,7 @@ fn floatingLayout(
     y_offset: i32,
 ) void {
     for (window_list.items) |*window| {
+        window.floating = float_math.fitted(window.floating, output.non_exclusive);
         if (window.is_fullscreen) {
             window.finish = output.rectangle;
         } else {
@@ -430,6 +433,10 @@ pub fn apply(
     }
 }
 
+// The float geometry itself lives in `float.zig`, which knows nothing about
+// wayland and is unit-tested on its own. These bind it to `Config` so the
+// tested code is the code that runs, exactly as `column.zig` is bound.
+
 /// Geometry for a rule-floated window: centred on the output at a proportion
 /// of the available area. Deliberately not `initialRectangle`, which is a
 /// tile-shaped slot (half width, full height) and therefore indistinguishable
@@ -439,36 +446,7 @@ pub fn floatRectangle(
     non_exclusive: types.Rectangle,
     config: types.Config,
 ) types.Rectangle {
-    const available_width: f32 = @floatFromInt(non_exclusive.width);
-    const available_height: f32 = @floatFromInt(non_exclusive.height);
-
-    const width: i32 = @intFromFloat(available_width * config.float_width);
-    const height: i32 = @intFromFloat(available_height * config.float_height);
-
-    return .{
-        .width = width,
-        .height = height,
-        .x = non_exclusive.x + @divTrunc(non_exclusive.width - width, 2),
-        .y = non_exclusive.y + @divTrunc(non_exclusive.height - height, 2),
-    };
-}
-
-/// Window rect for a content size the client chose itself. The dimensions
-/// event reports *content* size, which excludes the borders that
-/// `placeWindow` subtracts before proposing, so they have to be added back or
-/// the window shrinks by 2*border on every round trip. Capped at the output,
-/// since a clip box is the only thing rill can do with a window too big to fit.
-fn clientSize(
-    non_exclusive: types.Rectangle,
-    width: i32,
-    height: i32,
-    config: types.Config,
-) struct { width: i32, height: i32 } {
-    const border: i32 = 2 * @as(i32, config.border.width);
-    return .{
-        .width = @min(@max(width + border, 1), non_exclusive.width),
-        .height = @min(@max(height + border, 1), non_exclusive.height),
-    };
+    return float_math.proportional(non_exclusive, config.float_width, config.float_height);
 }
 
 /// Initial placement for a self-sizing floated window: its own size, centred.
@@ -478,19 +456,11 @@ pub fn floatRectangleClient(
     height: i32,
     config: types.Config,
 ) types.Rectangle {
-    const size = clientSize(non_exclusive, width, height, config);
-    return .{
-        .width = size.width,
-        .height = size.height,
-        .x = non_exclusive.x + @divTrunc(non_exclusive.width - size.width, 2),
-        .y = non_exclusive.y + @divTrunc(non_exclusive.height - size.height, 2),
-    };
+    return float_math.clientRectangle(non_exclusive, width, height, config.border.width);
 }
 
-/// Re-size a self-sizing floated window that has already been placed. The
-/// centre is preserved rather than re-centring on the output, so a window the
-/// user has dragged somewhere stays where they put it when the client resizes
-/// itself. The result is nudged back inside the output if it would overhang.
+/// Re-size a self-sizing floated window that has already been placed, keeping
+/// its centre where the user left it.
 pub fn floatRectangleResize(
     current: types.Rectangle,
     non_exclusive: types.Rectangle,
@@ -498,25 +468,7 @@ pub fn floatRectangleResize(
     height: i32,
     config: types.Config,
 ) types.Rectangle {
-    const size = clientSize(non_exclusive, width, height, config);
-
-    const center_x = current.x + @divTrunc(current.width, 2);
-    const center_y = current.y + @divTrunc(current.height, 2);
-
-    return .{
-        .width = size.width,
-        .height = size.height,
-        .x = std.math.clamp(
-            center_x - @divTrunc(size.width, 2),
-            non_exclusive.x,
-            non_exclusive.x + non_exclusive.width - size.width,
-        ),
-        .y = std.math.clamp(
-            center_y - @divTrunc(size.height, 2),
-            non_exclusive.y,
-            non_exclusive.y + non_exclusive.height - size.height,
-        ),
-    };
+    return float_math.resized(current, non_exclusive, width, height, config.border.width);
 }
 
 pub fn initialRectangle(
