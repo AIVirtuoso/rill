@@ -22,29 +22,30 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 run="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/rill-nested"
-pkg=${RILL_NIX_PKG:-/etc/nixos/pkgs/rill.nix}
 
 # Nothing here needs zig, wtype, lswt or grim installed: nix provides them.
-# The zig dependency linkFarm is resolved from the package rather than pinned
-# to a store path, which would be a path with no GC root -- the first
-# nix-collect-garbage would delete it and break the harness.
+#
+# The zig dependency linkFarm is the one vendored in the repo, so it needs no
+# network and, unlike a resolved store path, has no GC root to lose. It is
+# deliberately *not* taken from /etc/nixos/pkgs/rill.nix any more: callPackage
+# fills a `src` argument from nixpkgs, which now has a package of that name
+# (simple-revision-control), so `callPackage rill.nix {}` fails to evaluate
+# before it ever gets as far as the build.
 zig_deps() {
-	if [ -n "${RILL_ZIG_DEPS:-}" ]; then
-		echo "$RILL_ZIG_DEPS"
-		return
-	fi
-	nix build --no-link --print-out-paths --impure \
-		--expr "with import <nixpkgs> {}; (callPackage $pkg {}).deps"
+	echo "${RILL_ZIG_DEPS:-$root/zig-pkg}"
 }
 
 # Compiling rill needs pkg-config pointed at the *dev* outputs of wayland and
 # libxkbcommon, which is what `nix develop` sets up; the default outputs carry
-# no headers or .pc files, so having them installed would not be enough. zig
-# comes from the same environment, so nothing has to be installed to build.
+# no headers or .pc files, so having them installed would not be enough.
+# wayland-scanner and wayland-protocols are separate packages and build.zig
+# asks pkg-config for both by name. zig comes from the same environment, so
+# nothing has to be installed to build.
 in_build_env() {
-	nix develop --impure --expr \
-		"with import <nixpkgs> {}; callPackage $pkg {}" \
-		--command sh -c "$1"
+	nix develop --impure --expr "with import <nixpkgs> {}; mkShell {
+		nativeBuildInputs = [ zig pkg-config wayland-scanner wayland-protocols ];
+		buildInputs = [ wayland libxkbcommon ];
+	}" --command sh -c "$1"
 }
 
 # src/column.zig imports only std, so the unit tests need nothing but zig and
@@ -86,10 +87,10 @@ build)
 	in_build_env "cd '$root' && zig build --system '$(zig_deps)' --prefix '$run/out'"
 	;;
 
-# The pure column arithmetic, which needs no compositor. Separate from
-# `zig build test`, which SEGVs the 0.16 compiler (on upstream main too).
+# The pure column and float arithmetic, which needs no compositor. Separate
+# from `zig build test`, which SEGVs the 0.16 compiler (on upstream main too).
 test)
-	with_zig "cd '$root' && zig test src/column.zig"
+	with_zig "cd '$root' && zig test src/column.zig && zig test src/float.zig"
 	;;
 
 up)
