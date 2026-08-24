@@ -170,16 +170,16 @@ pub const Config = struct {
     pointer_bindings: []const PointerBinding = &default_pointer_bindings,
 };
 
-/// Matched against a window's app_id and title when it is first mapped. Both
-/// patterns are optional and a null pattern is unconstrained, so a rule with
-/// neither set is inert rather than applying to every window. When both are
-/// set, both must match. Some windows set no app_id at all (hyprpolkitagent,
-/// for one), which is why matching on title is supported.
 /// How a floated window is sized. `proportion` uses float_width/float_height
 /// of the output; `client` uses whatever dimensions the window picks for
 /// itself, which is what a dialog that has a natural size wants.
 pub const FloatSize = enum { proportion, client };
 
+/// Matched against a window's app_id and title when it is first mapped. Both
+/// patterns are optional and a null pattern is unconstrained, so a rule with
+/// neither set is inert rather than applying to every window. When both are
+/// set, both must match. Some windows set no app_id at all (hyprpolkitagent,
+/// for one), which is why matching on title is supported.
 pub const WindowRule = struct {
     app_id: ?[:0]const u8 = null,
     title: ?[:0]const u8 = null,
